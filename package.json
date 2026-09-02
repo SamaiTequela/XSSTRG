@@ -1,0 +1,18 @@
+{
+  "name": "point-of-order",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A two-player timed debate game judged by Claude.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
+    "@upstash/redis": "^1.34.3"
+  }
+}
