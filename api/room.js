@@ -11,7 +11,11 @@
 // Game-state rules live in ../lib/room-logic.js (unit-tested separately).
 
 import { getRedis, readRoom, writeRoom, roomExists, withLock } from "../lib/redis.js";
-import { freshRoom, applyAction, view, PER_SECS, MAX_MOTION, MAX_NAME, clip } from "../lib/room-logic.js";
+import {
+  freshRoom, applyAction, view,
+  PER_SECS, MAX_MOTION, MAX_NAME, clip,
+  JUDGE_SCORING_MS,
+} from "../lib/room-logic.js";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1
 const nowMs = () => Date.now();
@@ -67,6 +71,30 @@ async function handleGet(req, res, redis) {
   if (!room) {
     return res.status(404).json({ error: "That room doesn't exist, or it has expired.", code: "NO_ROOM" });
   }
+
+  // Opportunistically finalize scoring phase if timer expired (no lock needed — idempotent)
+  if (room.phase === "scoring" && room.scoringStartedAt) {
+    const elapsed = nowMs() - room.scoringStartedAt;
+    if (elapsed >= JUDGE_SCORING_MS) {
+      // Use the lock to safely finalize
+      try {
+        await withLock(redis, code, async () => {
+          const r2 = await readRoom(redis, code);
+          if (r2 && r2.phase === "scoring") {
+            const { applyAction: apply } = await import("../lib/room-logic.js");
+            const result = apply(r2, "checkScoringTimer", clientId, {});
+            if (result.mutated) {
+              r2.v += 1;
+              await writeRoom(redis, r2);
+            }
+          }
+        });
+        const updated = await readRoom(redis, code);
+        if (updated) return res.status(200).json({ view: view(updated, clientId) });
+      } catch (_) { /* ignore lock errors on GET */ }
+    }
+  }
+
   return res.status(200).json({ view: view(room, clientId) });
 }
 
@@ -93,6 +121,7 @@ async function handlePost(req, res, redis) {
     const name = clip(body.name, MAX_NAME) || "Speaker";
     const perSecs = Number(body.perSecs);
     const motion = clip(body.motion, MAX_MOTION);
+    const judgeMode = !!body.judgeMode;
 
     let code = null;
     for (let i = 0; i < 6; i++) {
@@ -104,10 +133,18 @@ async function handlePost(req, res, redis) {
     }
     if (!code) return res.status(503).json({ error: "Couldn't allocate a room. Try again." });
 
-    const room = freshRoom(code, motion, PER_SECS.includes(perSecs) ? perSecs : 300);
+    const room = freshRoom(code, motion, PER_SECS.includes(perSecs) ? perSecs : 300, judgeMode);
     room.host = clientId;
-    const mySide = Math.random() < 0.5 ? "for" : "against";
-    room.seats[mySide] = { clientId, name, lastSeen: nowMs() };
+
+    if (judgeMode) {
+      // In judge mode, creator joins as a player
+      const mySide = Math.random() < 0.5 ? "for" : "against";
+      room.seats[mySide] = { clientId, name, lastSeen: nowMs() };
+    } else {
+      const mySide = Math.random() < 0.5 ? "for" : "against";
+      room.seats[mySide] = { clientId, name, lastSeen: nowMs() };
+    }
+
     await writeRoom(redis, room);
     return res.status(200).json({ view: view(room, clientId) });
   }
@@ -120,6 +157,20 @@ async function handlePost(req, res, redis) {
     if (!room) {
       return { status: 404, json: { error: "That room doesn't exist, or it has expired.", code: "NO_ROOM" } };
     }
+
+    // Opportunistically check scoring timer on any POST if in scoring phase
+    if (room.phase === "scoring" && room.scoringStartedAt) {
+      const elapsed = nowMs() - room.scoringStartedAt;
+      if (elapsed >= JUDGE_SCORING_MS) {
+        const timerResult = applyAction(room, "checkScoringTimer", clientId, {});
+        if (timerResult.mutated) {
+          room.v += 1;
+          await writeRoom(redis, room);
+          return { status: 200, json: { view: view(room, clientId) } };
+        }
+      }
+    }
+
     const r = applyAction(room, action, clientId, body);
     if (r.error) return { status: r.status || 400, json: { error: r.error, code: r.code } };
     if (r.mutated) {

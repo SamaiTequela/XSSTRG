@@ -597,6 +597,343 @@
   .footnote { text-align: center; margin-top: 34px; color: var(--ink-soft); font-size: 13px; font-family: "Space Mono", monospace; letter-spacing: .04em; }
 
   [hidden] { display: none !important; }
+
+  /* ============================================================
+     CROWD JURY MODE STYLES
+     ============================================================ */
+
+  /* Mode toggle inside Two Devices panel */
+  .judge-mode-toggle {
+    display: flex; gap: 10px; margin: 16px 0 4px; flex-wrap: wrap;
+    align-items: center;
+  }
+  .judge-mode-toggle .eyebrow { margin-right: 4px; }
+  .jm-card {
+    flex: 1; min-width: 160px; border: 2px solid var(--line-strong);
+    border-radius: 14px; padding: 14px 16px; cursor: pointer;
+    background: var(--surface); transition: border-color .15s ease, box-shadow .15s ease;
+    text-align: center;
+  }
+  .jm-card:hover { border-color: var(--ink-soft); }
+  .jm-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .jm-card .jm-icon { font-size: 28px; margin-bottom: 6px; }
+  .jm-card .jm-title {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 15px; margin-bottom: 3px;
+  }
+  .jm-card .jm-desc { font-size: 13px; color: var(--ink-soft); line-height: 1.4; }
+  .jm-hint {
+    margin-top: 10px; font-size: 13px; color: var(--ink-soft);
+    padding: 10px 14px; background: var(--chamber); border-radius: 10px;
+    border: 1px solid var(--line);
+  }
+
+  /* Spectator list in lobby */
+  .spectators-section {
+    margin-top: 18px; border: 1px solid var(--line-strong);
+    border-radius: 14px; overflow: hidden;
+  }
+  .spectators-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--chamber);
+    border-bottom: 1px solid var(--line);
+  }
+  .spectators-count {
+    font-family: "Space Mono", monospace; font-size: 12px;
+    letter-spacing: .08em; text-transform: uppercase;
+    background: var(--accent); color: var(--accent-ink);
+    padding: 2px 9px; border-radius: 999px;
+  }
+  .spectators-count.none { background: var(--line-strong); color: var(--ink-soft); }
+  .spectators-list {
+    padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 8px;
+    min-height: 48px;
+  }
+  .spectator-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: "Space Mono", monospace; font-size: 12px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--ground); border: 1px solid var(--line-strong);
+    color: var(--ink);
+  }
+  .spectator-chip .chip-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--for);
+  }
+  .spectator-chip.stale .chip-dot { background: var(--ink-soft); }
+  .spectators-empty {
+    font-style: italic; color: var(--ink-soft); font-size: 14px; padding: 8px 0;
+  }
+  .spectators-req {
+    padding: 8px 14px 12px; font-size: 13px; color: var(--ink-soft);
+    font-family: "Space Mono", monospace; letter-spacing: .04em;
+  }
+
+  /* Role picker overlay (join flow) */
+  .role-picker .sheet { max-width: 520px; }
+  .role-picker .role-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0;
+  }
+  @media (max-width: 520px) { .role-picker .role-grid { grid-template-columns: 1fr; } }
+  .role-card {
+    border: 2px solid var(--line-strong); border-radius: 16px;
+    padding: 22px 18px; cursor: pointer; text-align: center;
+    background: var(--surface);
+    transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .role-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .role-card .role-icon { font-size: 36px; margin-bottom: 10px; }
+  .role-card .role-title {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800;
+    font-size: 18px; margin-bottom: 5px;
+  }
+  .role-card .role-desc { font-size: 14px; color: var(--ink-soft); line-height: 1.4; }
+  .role-card.player-card { border-color: var(--for-line); background: linear-gradient(var(--for-bg), var(--surface) 140%); }
+  .role-card.judge-card  { border-color: var(--brass);    background: linear-gradient(color-mix(in srgb, var(--brass) 12%, transparent), var(--surface) 140%); }
+  .role-card.player-card:hover, .role-card.player-card.selected { border-color: var(--for); }
+  .role-card.judge-card:hover, .role-card.judge-card.selected { border-color: var(--brass); }
+  .role-card.player-card .role-title { color: var(--for); }
+  .role-card.judge-card .role-title { color: var(--brass); }
+  .role-picker .rp-hint { font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; }
+  .rp-full-note {
+    padding: 10px 14px; border-radius: 10px;
+    background: var(--against-bg); border: 1px solid var(--against-line);
+    color: var(--ink); font-size: 14px; margin-bottom: 14px;
+  }
+
+  /* Spectator view during debate */
+  .spectator-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: 14px; margin-bottom: 18px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--surface)), var(--surface));
+    border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
+  }
+  .spectator-banner .sb-icon { font-size: 26px; }
+  .spectator-banner .sb-text { flex: 1; }
+  .spectator-banner .sb-title {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 16px; color: var(--brass);
+  }
+  .spectator-banner .sb-sub { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .spectator-count-badge {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    padding: 3px 10px; border-radius: 999px;
+    background: color-mix(in srgb, var(--brass) 15%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
+    color: var(--brass);
+  }
+
+  /* Scoring screen */
+  .scoring-wrap {
+    max-width: 640px; margin: 0 auto;
+  }
+  .scoring-header {
+    text-align: center; padding: clamp(20px, 4vw, 36px) 0 24px;
+  }
+  .scoring-header .gavel { font-size: 48px; display: inline-block;
+    animation: gavel-swing 1.4s ease-in-out infinite;
+    transform-origin: 70% 70%;
+  }
+  @keyframes gavel-swing {
+    0%, 100% { transform: rotate(-18deg); }
+    50% { transform: rotate(8deg); }
+  }
+  .scoring-timer {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin: 16px 0 24px;
+  }
+  .scoring-timer .timer-clock {
+    font-family: "Space Mono", monospace; font-weight: 700;
+    font-size: clamp(28px, 7vw, 44px); font-variant-numeric: tabular-nums;
+    color: var(--brass);
+  }
+  .scoring-timer .timer-clock.urgent { color: var(--against);
+    animation: timer-pulse 0.6s ease-in-out infinite;
+  }
+  @keyframes timer-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  .scoring-timer .timer-label {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .progress-bar-wrap {
+    height: 4px; border-radius: 99px; background: var(--line);
+    overflow: hidden; margin-bottom: 28px;
+  }
+  .progress-bar {
+    height: 100%; border-radius: 99px;
+    background: var(--brass); transition: width .5s linear;
+  }
+  .progress-bar.urgent { background: var(--against); }
+
+  .score-panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; padding: clamp(18px, 4vw, 28px);
+    box-shadow: var(--shadow); margin-bottom: 18px;
+  }
+  .score-panel h3 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 18px; margin: 0 0 18px;
+  }
+  .score-sides {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
+  }
+  @media (max-width: 520px) { .score-sides { grid-template-columns: 1fr; } }
+  .score-side {
+    border-radius: 14px; padding: 16px;
+    border: 1px solid var(--line);
+  }
+  .score-side.side-for { border-color: var(--for-line); background: var(--for-bg); }
+  .score-side.side-against { border-color: var(--against-line); background: var(--against-bg); }
+  .score-side .ss-label {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 10px; display: block;
+  }
+  .score-side.side-for .ss-label { color: var(--for); }
+  .score-side.side-against .ss-label { color: var(--against); }
+  .score-side .ss-name {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 18px; margin-bottom: 12px;
+  }
+  .score-slider-wrap { display: flex; align-items: center; gap: 10px; }
+  .score-slider {
+    flex: 1; -webkit-appearance: none; height: 6px;
+    border-radius: 99px; outline: none; cursor: pointer;
+    background: var(--line-strong);
+  }
+  .score-side.side-for   .score-slider { accent-color: var(--for); }
+  .score-side.side-against .score-slider { accent-color: var(--against); }
+  .score-number {
+    font-family: "Space Mono", monospace; font-weight: 700;
+    font-size: 22px; min-width: 38px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-side.side-for .score-number { color: var(--for); }
+  .score-side.side-against .score-number { color: var(--against); }
+
+  .remarks-section label {
+    display: block; font-family: "Space Mono", monospace; font-size: 12px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+    margin-bottom: 7px;
+  }
+  .remarks-section textarea {
+    width: 100%; resize: vertical; min-height: 80px;
+    padding: 12px 14px; font-size: 16px; line-height: 1.45;
+    font-family: "Newsreader", serif;
+    background: var(--ground); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 10px;
+  }
+  .remarks-section textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  .scoring-actions {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    justify-content: center; margin-top: 8px;
+  }
+  .judge-submitted {
+    text-align: center; padding: 32px 20px;
+  }
+  .judge-submitted .big-check { font-size: 52px; margin-bottom: 10px; }
+  .judge-submitted h3 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 22px; margin: 0 0 6px;
+  }
+  .judge-submitted p { color: var(--ink-soft); margin: 0; }
+  .judges-waiting-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    background: var(--chamber); border: 1px solid var(--line);
+    margin-top: 16px; flex-wrap: wrap;
+  }
+  .jwb-label {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+    margin-right: 4px;
+  }
+  .judge-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--line-strong);
+    transition: background .3s ease;
+  }
+  .judge-dot.done { background: var(--for); }
+
+  /* Verdict — judge breakdown */
+  .jury-verdict-eyebrow {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--brass); margin-bottom: 4px;
+  }
+  .jury-breakdown {
+    margin-top: 26px;
+  }
+  .jury-breakdown h3 {
+    font-family: "Space Mono", monospace; font-size: 12px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+    font-weight: 700; margin: 0 0 12px;
+  }
+  .judge-cards { display: flex; flex-direction: column; gap: 12px; }
+  .judge-verdict-card {
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; background: var(--surface);
+    animation: fadeIn .4s ease both;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .jvc-top {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .jvc-name {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 16px; flex: 1;
+  }
+  .jvc-scores {
+    display: flex; gap: 10px; font-family: "Space Mono", monospace;
+    font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  .jvc-score-for { color: var(--for); }
+  .jvc-score-against { color: var(--against); }
+  .jvc-remarks {
+    font-size: 14px; color: var(--ink); font-style: italic;
+    padding: 8px 12px; background: var(--chamber);
+    border-left: 3px solid var(--brass); border-radius: 4px 8px 8px 4px;
+    line-height: 1.45;
+  }
+
+  /* Reallocate modal */
+  .reallocate-sheet { max-width: 580px !important; }
+  .reallocate-list {
+    display: flex; flex-direction: column; gap: 10px;
+    margin: 18px 0;
+  }
+  .realloc-person {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--surface);
+  }
+  .realloc-person .rp-name {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 16px; flex: 1;
+  }
+  .rp-role-sel {
+    font-family: "Space Mono", monospace; font-size: 12px;
+    padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line-strong); background: var(--ground);
+    color: var(--ink); cursor: pointer;
+  }
+  .rp-role-sel:focus-visible { outline: 3px solid var(--accent); }
+
+  /* Spectator wait during review */
+  .spectator-wait {
+    text-align: center; padding: 40px 20px;
+  }
+  .spectator-wait .sw-icon { font-size: 42px; margin-bottom: 12px; }
+  .spectator-wait h3 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 22px; margin: 0 0 8px;
+  }
+  .spectator-wait p { color: var(--ink-soft); max-width: 46ch; margin: 0 auto; }
 </style>
 
 <div class="wrap">
@@ -671,6 +1008,22 @@
         <label for="onlineName">Your name</label>
         <input id="onlineName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="e.g. Alex" />
       </div>
+
+      <div class="judge-mode-toggle">
+        <span class="eyebrow">Judge mode</span>
+        <div id="jmAI" class="jm-card selected" role="button" tabindex="0" aria-pressed="true">
+          <div class="jm-icon">🤖</div>
+          <div class="jm-title">AI Judge</div>
+          <div class="jm-desc">Gemini adjudicates the debate</div>
+        </div>
+        <div id="jmCrowd" class="jm-card" role="button" tabindex="0" aria-pressed="false">
+          <div class="jm-icon">👥</div>
+          <div class="jm-title">Crowd Jury</div>
+          <div class="jm-desc">Spectators vote as judges</div>
+        </div>
+      </div>
+      <p class="jm-hint" id="jmHint" hidden>Spectators who join the room will score as judges (1–10 required). Only 2 players may debate.</p>
+
       <div class="online-cta">
         <button class="btn-primary" id="createRoomBtn">Create a room →</button>
       </div>
@@ -706,6 +1059,18 @@
         <span class="seat-name" id="seatAgainstName">—</span>
         <span class="seat-status" id="seatAgainstStatus"></span>
       </div>
+    </div>
+
+    <!-- Spectator judges list (Crowd Jury mode only) -->
+    <div class="spectators-section" id="spectatorsSection" hidden>
+      <div class="spectators-head">
+        <span class="eyebrow">Judges panel</span>
+        <span class="spectators-count none" id="spectatorsCount">0 judges</span>
+      </div>
+      <div class="spectators-list" id="spectatorsList">
+        <span class="spectators-empty">No judges yet — share the room link so spectators can join as judges.</span>
+      </div>
+      <p class="spectators-req" id="spectatorsReq">At least 1 judge required to start.</p>
     </div>
 
     <div class="topic-box">
@@ -744,11 +1109,29 @@
       <span class="eyebrow" id="lobbyHint">Waiting for the other speaker to join…</span>
       <button class="btn-ghost" id="lobbyLeaveBtn" style="margin-left:auto;">Leave room</button>
     </div>
+
+    <!-- Spectator wait view (shown to spectators in lobby) -->
+    <div id="lobbySpectatorView" hidden style="margin-top:18px;">
+      <div class="spectator-wait">
+        <div class="sw-icon">⚖️</div>
+        <h3>You're in the judge's seat</h3>
+        <p>Watch the debate unfold, then score both sides out of 10 and leave your remarks. The verdict is revealed all at once when everyone finishes.</p>
+      </div>
+    </div>
   </section>
 
   <!-- ============ DEBATE ============ -->
   <section id="screen-debate" hidden>
     <div class="online-bar" id="onlineBar" hidden></div>
+    <!-- Spectator banner (Crowd Jury only, shown to spectators) -->
+    <div class="spectator-banner" id="spectatorBanner" hidden>
+      <div class="sb-icon">⚖️</div>
+      <div class="sb-text">
+        <div class="sb-title">You are a judge</div>
+        <div class="sb-sub">Watch closely — you'll score both sides when the debate ends.</div>
+      </div>
+      <span class="spectator-count-badge" id="spectatorCountBadge">1 judge</span>
+    </div>
 
     <div class="stage-head">
       <div class="motion-small" id="stageMotive"></div>
@@ -799,13 +1182,91 @@
     </div>
   </section>
 
+  <!-- ============ SCORING (Crowd Jury judges score) ============ -->
+  <section id="screen-scoring" class="card setup" hidden>
+    <div class="scoring-wrap">
+      <div class="scoring-header">
+        <div class="gavel">⚖️</div>
+        <h2 style="margin-top:14px;" id="scoringTitle">The jury is deliberating</h2>
+        <p style="color:var(--ink-soft);margin:6px 0 0;" id="scoringSubtitle">Score both sides out of 10 and leave your remarks.</p>
+      </div>
+
+      <div class="scoring-timer">
+        <div>
+          <div class="timer-clock" id="scoringTimerClock">2:00</div>
+          <div class="timer-label">time remaining</div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="scoringProgressBar" style="width:100%"></div>
+      </div>
+
+      <!-- Scoring form (shown to judges who haven't submitted) -->
+      <div id="scoringForm">
+        <div class="score-panel">
+          <h3>Your scores</h3>
+          <div class="score-sides">
+            <div class="score-side side-for">
+              <span class="ss-label">For the motion</span>
+              <div class="ss-name" id="scoringNameFor">—</div>
+              <div class="score-slider-wrap">
+                <input type="range" class="score-slider" id="sliderFor" min="0" max="10" step="1" value="5" />
+                <span class="score-number" id="scoreNumFor">5</span>
+              </div>
+            </div>
+            <div class="score-side side-against">
+              <span class="ss-label">Against the motion</span>
+              <div class="ss-name" id="scoringNameAgainst">—</div>
+              <div class="score-slider-wrap">
+                <input type="range" class="score-slider" id="sliderAgainst" min="0" max="10" step="1" value="5" />
+                <span class="score-number" id="scoreNumAgainst">5</span>
+              </div>
+            </div>
+          </div>
+          <div class="remarks-section">
+            <label for="scoringRemarks">Remarks (optional)</label>
+            <textarea id="scoringRemarks" maxlength="600" placeholder="Share your reasoning — what tipped the balance for you?"></textarea>
+          </div>
+        </div>
+        <div class="scoring-actions">
+          <button class="btn-primary" id="submitJudgementBtn">Submit my judgement →</button>
+        </div>
+      </div>
+
+      <!-- Confirmation shown after judge submits -->
+      <div id="scoringDone" hidden>
+        <div class="judge-submitted">
+          <div class="big-check">✅</div>
+          <h3>Judgement submitted!</h3>
+          <p>Waiting for other judges to finish…</p>
+        </div>
+      </div>
+
+      <!-- Waiting bar showing which judges are done -->
+      <div class="judges-waiting-bar" id="judgesWaitingBar">
+        <span class="jwb-label">Judges</span>
+        <div id="judgeDotsWrap" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <span style="font-size:13px;color:var(--ink-soft);margin-left:auto;" id="judgesReadyCount">0/0 ready</span>
+      </div>
+
+      <!-- Player wait view (shown to players during scoring phase) -->
+      <div id="scoringPlayerWait" hidden>
+        <div class="spectator-wait" style="padding-top:16px;">
+          <div class="sw-icon">🧑‍⚖️</div>
+          <h3>The jury is deliberating…</h3>
+          <p>The judges are scoring the debate. The verdict will be revealed all at once when they finish.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ REVIEW (both speakers confirm) ============ -->
   <section id="screen-review" class="card setup" hidden>
     <p class="eyebrow" style="margin-bottom:10px;">The record is closed</p>
     <h2 class="review-title" id="reviewTitle">Both speakers must agree before the adjudicator reads the record.</h2>
     <p class="review-sub" id="reviewSub">Take a moment with the transcript below. When you're both ready, the verdict is final.</p>
 
-    <div class="ready-grid">
+    <div class="ready-grid" id="readyGrid">
       <div class="ready-seat for" id="readySeatFor">
         <span class="pill for">For the motion</span>
         <span class="ready-name" data-name="for">Alex</span>
@@ -874,9 +1335,16 @@
 
       <div id="verdictNotice" class="notice" hidden></div>
 
+      <!-- Jury breakdown (Crowd Jury mode only) -->
+      <div class="jury-breakdown" id="juryBreakdown" hidden>
+        <h3>Judge scores &amp; remarks</h3>
+        <div class="judge-cards" id="judgeCards"></div>
+      </div>
+
       <div class="verdict-actions">
         <button class="btn-primary" id="rematchBtn">Rematch — swap sides</button>
         <button class="btn-ghost" id="newDebateBtn">New motion, same speakers</button>
+        <button class="btn-ghost" id="reallocateBtn" hidden>Reallocate roles</button>
         <button class="btn-ghost" id="resetBtn">Change speakers</button>
       </div>
     </div>
@@ -905,6 +1373,45 @@
       <button class="btn-primary" id="endReqAcceptBtn">Accept &amp; Call Judge</button>
       <button class="btn-ghost" id="endReqRefuseBtn">Refuse &amp; Continue Debate</button>
       <button class="btn-ghost" id="endReqCancelBtn" hidden>Cancel Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Role picker overlay (Crowd Jury join flow) -->
+<div class="overlay role-picker" id="rolePickerOverlay" hidden>
+  <div class="sheet">
+    <div class="up-name" style="font-size:clamp(22px,5vw,28px);">How will you join?</div>
+    <p class="rp-hint" id="rpRoomCode" style="margin:8px 0 0; font-family:'Space Mono',monospace; font-size:13px; color:var(--ink-soft);">Room —</p>
+    <div id="rpFullNote" class="rp-full-note" hidden>Both player seats are taken. You can join as a judge.</div>
+    <div class="role-grid">
+      <div class="role-card player-card" id="rpPlayerCard" role="button" tabindex="0">
+        <div class="role-icon">🎤</div>
+        <div class="role-title">Player</div>
+        <div class="role-desc">Debate the motion, argue your side</div>
+      </div>
+      <div class="role-card judge-card" id="rpJudgeCard" role="button" tabindex="0">
+        <div class="role-icon">⚖️</div>
+        <div class="role-title">Judge</div>
+        <div class="role-desc">Score the arguments and give your verdict</div>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <button class="btn-primary" id="rpConfirmBtn" disabled>Join →</button>
+      <button class="btn-ghost" id="rpCancelBtn" style="margin-left:10px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reallocate roles overlay (host only, after verdict in Crowd Jury mode) -->
+<div class="overlay" id="reallocateOverlay" hidden>
+  <div class="sheet reallocate-sheet">
+    <div class="up-name" style="font-size:clamp(20px,5vw,26px);">Reallocate roles</div>
+    <p class="up-hint" style="margin:10px 0 0; font-size:15px;">Choose who will debate as players. Everyone else becomes a judge.</p>
+    <div class="reallocate-list" id="reallocateList"></div>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 18px;">Exactly 2 players required.</p>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn-primary" id="reallocateConfirmBtn">Confirm &amp; go to lobby →</button>
+      <button class="btn-ghost" id="reallocateCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -1259,6 +1766,43 @@
     });
   }
 
+  var renderVerdict_orig = null; // placeholder to fix order
+
+  function renderVerdictJuryBreakdown(v) {
+    var breakdown = $("juryBreakdown");
+    var cards = $("judgeCards");
+    if (!v || !v.individualScores || !v.individualScores.length) {
+      breakdown.hidden = true;
+      return;
+    }
+    breakdown.hidden = false;
+    cards.innerHTML = "";
+    v.individualScores.forEach(function (j, i) {
+      var card = document.createElement("div");
+      card.className = "judge-verdict-card";
+      card.style.animationDelay = (i * 0.08) + "s";
+      var topDiv = document.createElement("div");
+      topDiv.className = "jvc-top";
+      var nameEl = document.createElement("div");
+      nameEl.className = "jvc-name";
+      nameEl.textContent = j.name || "Judge";
+      var scoresEl = document.createElement("div");
+      scoresEl.className = "jvc-scores";
+      scoresEl.innerHTML = '<span class="jvc-score-for">FOR ' + j.scoreFor + '/10</span>' +
+        '<span class="jvc-score-against">AGAINST ' + j.scoreAgainst + '/10</span>';
+      topDiv.appendChild(nameEl);
+      topDiv.appendChild(scoresEl);
+      card.appendChild(topDiv);
+      if (j.remarks && j.remarks.trim()) {
+        var rem = document.createElement("div");
+        rem.className = "jvc-remarks";
+        rem.textContent = "\u201c" + j.remarks.trim() + "\u201d";
+        card.appendChild(rem);
+      }
+      cards.appendChild(card);
+    });
+  }
+
   function renderVerdict(v, notice, nF, nA) {
     nF = nF || state.nameFor;
     nA = nA || state.nameAgainst;
@@ -1301,6 +1845,9 @@
     $("forAdvice").hidden = !v["for"].advice;
     $("againstAdvice").textContent = v["against"].advice ? "Advice · " + v["against"].advice : "";
     $("againstAdvice").hidden = !v["against"].advice;
+
+    // Jury breakdown (Crowd Jury mode)
+    renderVerdictJuryBreakdown(v);
   }
 
   function show(name) {
@@ -1309,6 +1856,7 @@
     $("screen-lobby").hidden = name !== "lobby";
     $("screen-debate").hidden = name !== "debate";
     $("screen-review").hidden = name !== "review";
+    $("screen-scoring").hidden = name !== "scoring";
     $("screen-verdict").hidden = name !== "verdict";
     if (name !== "debate") $("overlay").hidden = true;
     window.scrollTo(0, 0);
@@ -1815,6 +2363,22 @@
   $("modeLocal").addEventListener("click", function () { setMode("local"); });
   $("modeOnline").addEventListener("click", function () { setMode("online"); $("onlineName").focus(); });
 
+  /* --- judge mode toggle --- */
+  var judgeMode = false; // true = Crowd Jury
+
+  function setJudgeMode(crowd) {
+    judgeMode = crowd;
+    $("jmAI").classList.toggle("selected", !crowd);
+    $("jmAI").setAttribute("aria-pressed", crowd ? "false" : "true");
+    $("jmCrowd").classList.toggle("selected", crowd);
+    $("jmCrowd").setAttribute("aria-pressed", crowd ? "true" : "false");
+    $("jmHint").hidden = !crowd;
+  }
+  $("jmAI").addEventListener("click", function () { setJudgeMode(false); });
+  $("jmCrowd").addEventListener("click", function () { setJudgeMode(true); });
+  $("jmAI").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setJudgeMode(false); } });
+  $("jmCrowd").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setJudgeMode(true); } });
+
   function oErr(msg) { var e = $("onlineErr"); e.hidden = false; e.textContent = msg; }
   function oErrClear() { $("onlineErr").hidden = true; }
   $("onlineName").addEventListener("input", oErrClear);
@@ -1849,7 +2413,7 @@
     var name = ($("onlineName").value || "").trim().slice(0, 24);
     if (!name) { oErr("Enter your name first."); $("onlineName").focus(); return; }
     $("createRoomBtn").disabled = true;
-    oPost({ action: "create", name: name, perSecs: state.perSecs, motion: pickMotion() })
+    oPost({ action: "create", name: name, perSecs: state.perSecs, motion: pickMotion(), judgeMode: judgeMode })
       .then(function (j) { oEnter(j.view); })
       .catch(function (e) { oErr(e.message || "Couldn't create a room."); })
       .then(function () { $("createRoomBtn").disabled = false; });
@@ -1864,11 +2428,84 @@
     if (code.length !== 4) { oErr("Enter the 4-letter room code."); $("joinCode").focus(); return; }
     $("joinRoomBtn").disabled = true;
     online.code = code;
-    oPost({ action: "join", code: code, name: name })
-      .then(function (j) { oEnter(j.view); })
-      .catch(function (e) { online.code = null; oErr(e.message || "Couldn't join that room."); })
-      .then(function () { $("joinRoomBtn").disabled = false; });
+
+    // Peek at the room first to see if it's a Crowd Jury room
+    fetch(API_ROOM + "?code=" + encodeURIComponent(code) + "&clientId=" + encodeURIComponent(clientId))
+      .then(function (res) { return res.json().catch(function () { return {}; }).then(function (j) { return { ok: res.ok, status: res.status, j: j }; }); })
+      .then(function (r) {
+        if (!r.ok) {
+          online.code = null;
+          oErr(r.j && r.j.error ? r.j.error : "Couldn't join that room.");
+          $("joinRoomBtn").disabled = false;
+          return;
+        }
+        var v = r.j.view;
+        if (v && v.config && v.config.judgeMode) {
+          // Show role picker
+          var playersFull = v.seats.for.filled && v.seats.against.filled;
+          $("rpRoomCode").textContent = "Room " + code;
+          $("rpFullNote").hidden = !playersFull;
+          $("rpPlayerCard").classList.remove("selected");
+          $("rpJudgeCard").classList.remove("selected");
+          $("rpConfirmBtn").disabled = true;
+          $("rpPlayerCard").style.opacity = playersFull ? "0.4" : "";
+          $("rpPlayerCard").style.pointerEvents = playersFull ? "none" : "";
+          online._pendingJoinName = name;
+          online._pendingJoinCode = code;
+          online._pendingJoinRole = null;
+          $("rolePickerOverlay").hidden = false;
+          $("joinRoomBtn").disabled = false;
+          return;
+        }
+        // Normal join (AI judge mode)
+        oPost({ action: "join", code: code, name: name })
+          .then(function (j) { oEnter(j.view); })
+          .catch(function (e) { online.code = null; oErr(e.message || "Couldn't join that room."); })
+          .then(function () { $("joinRoomBtn").disabled = false; });
+      })
+      .catch(function () {
+        online.code = null; oErr("Couldn't connect."); $("joinRoomBtn").disabled = false;
+      });
   }
+
+  /* --- role picker overlay --- */
+  function rpSelectRole(role) {
+    online._pendingJoinRole = role;
+    $("rpPlayerCard").classList.toggle("selected", role === "player");
+    $("rpJudgeCard").classList.toggle("selected", role === "spectator");
+    $("rpConfirmBtn").disabled = false;
+  }
+  $("rpPlayerCard").addEventListener("click", function () {
+    if ($("rpPlayerCard").style.pointerEvents === "none") return;
+    rpSelectRole("player");
+  });
+  $("rpJudgeCard").addEventListener("click", function () { rpSelectRole("spectator"); });
+  $("rpPlayerCard").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && $("rpPlayerCard").style.pointerEvents !== "none") { e.preventDefault(); rpSelectRole("player"); } });
+  $("rpJudgeCard").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); rpSelectRole("spectator"); } });
+
+  $("rpCancelBtn").addEventListener("click", function () {
+    $("rolePickerOverlay").hidden = true;
+    online.code = null;
+    online._pendingJoinRole = null;
+  });
+  $("rpConfirmBtn").addEventListener("click", function () {
+    var name = online._pendingJoinName;
+    var code = online._pendingJoinCode;
+    var role = online._pendingJoinRole;
+    if (!role) return;
+    $("rpConfirmBtn").disabled = true;
+    oPost({ action: "join", code: code, name: name, role: role })
+      .then(function (j) {
+        $("rolePickerOverlay").hidden = true;
+        oEnter(j.view);
+      })
+      .catch(function (e) {
+        oErr(e.message || "Couldn't join.");
+        $("rolePickerOverlay").hidden = true;
+        online.code = null;
+      })
+      .then(function () { $("rpConfirmBtn").disabled = false; });
+  });
 
   function oEnter(view) {
     clearPrep(); // hot-seat prep must not outlive a switch into a room
@@ -1891,9 +2528,11 @@
     clearTimeout(online.pollTimer); online.pollTimer = null;
     clearInterval(online.pingTimer); online.pingTimer = null;
     clearInterval(online.tickTimer); online.tickTimer = null;
+    if (online.scoringTimerHandle) { clearInterval(online.scoringTimerHandle); online.scoringTimerHandle = null; }
     stopThinkingMessages();
     online.code = null; online.view = null; online.snap = null; online.mySide = null;
     online.judging = false;
+    online.scoringSubmitted = false;
     try { sessionStorage.removeItem("poo.room"); } catch (e) {}
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
   }
@@ -1922,6 +2561,7 @@
     if (v.phase === "debate") return (v.clock.active === online.mySide && v.clock.running) ? 6000 : 2000;
     if (v.phase === "review") return 2000;
     if (v.phase === "judging") return 2500;
+    if (v.phase === "scoring") return 2000; // Crowd Jury scoring
     if (v.phase === "verdict") return 4000;
     return 3000;
   }
@@ -2010,7 +2650,7 @@
       at: performance.now()
     };
 
-    if (online.mySide == null) { oRoomGone(); return; }
+    if (online.mySide == null && !view.you.isSpectator) { oRoomGone(); return; }
 
     if (prevPhase !== "debate" && view.phase === "debate") {
       online._myTurnLast = false;
@@ -2036,6 +2676,9 @@
       if (currentScreen !== "verdict") show("verdict");
       oShowThinking();
       oMaybeJudge();
+    } else if (view.phase === "scoring") {
+      if (currentScreen !== "scoring") show("scoring");
+      oRenderScoring();
     } else if (view.phase === "verdict") {
       if (currentScreen !== "verdict") show("verdict");
       oRenderVerdictArea();
@@ -2073,16 +2716,50 @@
     if (!online.isHost && lobbyEditor) lobbyEditor.close();
 
     var bothIn = v.seats.for.filled && v.seats.against.filled;
-    $("lobbyStartBtn").hidden = !online.isHost;
-    $("lobbyStartBtn").disabled = !bothIn;
-    if (online.isHost) {
-      $("lobbyHint").textContent = bothIn
-        ? "Both speakers are in. Start when you're ready."
-        : "Send the code or link — waiting for the other speaker…";
+    var isJudgeMode = !!(v.config && v.config.judgeMode);
+    var amSpectator = !!v.you.isSpectator;
+    var specCount = (v.spectators || []).length;
+
+    // Spectator judges list
+    $("spectatorsSection").hidden = !isJudgeMode;
+    if (isJudgeMode) {
+      var countEl = $("spectatorsCount");
+      countEl.textContent = specCount + (specCount === 1 ? " judge" : " judges");
+      countEl.className = "spectators-count" + (specCount === 0 ? " none" : "");
+      var listEl = $("spectatorsList");
+      if (!specCount) {
+        listEl.innerHTML = '<span class="spectators-empty">No judges yet \u2014 share the room link so spectators can join.</span>';
+      } else {
+        listEl.innerHTML = "";
+        (v.spectators || []).forEach(function (s) {
+          var chip = document.createElement("span");
+          chip.className = "spectator-chip" + (s.stale ? " stale" : "");
+          chip.innerHTML = '<span class="chip-dot"></span>' + escapeHtml(s.name || "Judge");
+          listEl.appendChild(chip);
+        });
+      }
+      $("spectatorsReq").hidden = specCount >= 1;
+    }
+
+    // Spectator view in lobby (hide controls, show spectator welcome)
+    var amSpectatorLobby = isJudgeMode && amSpectator;
+    $("lobbySpectatorView").hidden = !amSpectatorLobby;
+
+    $("lobbyStartBtn").hidden = !online.isHost || amSpectator;
+    var needJudges = isJudgeMode && specCount < 1;
+    $("lobbyStartBtn").disabled = !bothIn || needJudges;
+    if (online.isHost && !amSpectator) {
+      var baseHint = bothIn ? "Both speakers are in. Start when you're ready." : "Send the code or link \u2014 waiting for the other speaker\u2026";
+      if (isJudgeMode && !bothIn) baseHint = "Waiting for both speakers to join\u2026";
+      if (isJudgeMode && bothIn && specCount < 1) baseHint = "Need at least 1 judge to start. Share the link!";
+      if (isJudgeMode && bothIn && specCount >= 1) baseHint = "Both speakers + " + specCount + " judge" + (specCount !== 1 ? "s" : "") + " ready. Start when you like.";
+      $("lobbyHint").textContent = baseHint;
+    } else if (amSpectator) {
+      $("lobbyHint").textContent = "";
     } else {
       $("lobbyHint").textContent = bothIn
-        ? "Waiting for the host to start the debate…"
-        : "Waiting for another speaker to join…";
+        ? "Waiting for the host to start the debate\u2026"
+        : "Waiting for another speaker to join\u2026";
     }
   }
 
@@ -2202,14 +2879,37 @@
       $("endRequestOverlay").hidden = true;
     }
 
+    // Spectator banner (Crowd Jury mode)
+    var isJudgeModeDebate = !!(v.config && v.config.judgeMode);
+    var amSpectatorDebate = !!v.you.isSpectator;
+    $("spectatorBanner").hidden = !amSpectatorDebate;
+    if (amSpectatorDebate) {
+      var specTotal = (v.spectators || []).length;
+      $("spectatorCountBadge").textContent = specTotal + (specTotal === 1 ? " judge" : " judges");
+    }
+
+    // For spectators: disable all controls, show read-only view
+    if (amSpectatorDebate) {
+      $("speech").disabled = true;
+      $("submitTurn").disabled = true;
+      $("requestEndBtn").disabled = true;
+      $("concedeTurn").disabled = true;
+      $("floor").style.display = "none";
+      $("onlineBar").hidden = false;
+      $("onlineBar").textContent = "Room " + v.code + "   \u00b7   you are a judge   \u00b7   " + (v.spectators || []).length + " judge(s)";
+      return;
+    } else {
+      $("floor").style.display = "";
+    }
+
     var oppSide = online.mySide === "for" ? "against" : "for";
     var opp = v.seats[oppSide];
     var oppTxt = !opp.filled ? "opponent left the room"
-      : opp.stale ? (opp.name + " — reconnecting…")
+      : opp.stale ? (opp.name + " \u2014 reconnecting\u2026")
       : (opp.name + " connected");
     $("onlineBar").hidden = false;
-    $("onlineBar").textContent = "Room " + v.code + "   ·   you're arguing " +
-      (online.mySide === "for" ? "FOR" : "AGAINST") + "   ·   " + oppTxt;
+    $("onlineBar").textContent = "Room " + v.code + "   \u00b7   you're arguing " +
+      (online.mySide === "for" ? "FOR" : "AGAINST") + "   \u00b7   " + oppTxt;
   }
 
   function oSubmitTurn(passed) {
@@ -2257,31 +2957,140 @@
   /* --- review: both speakers press Next --- */
   function oRenderReview() {
     var v = online.view;
+    var amSpectator = !!v.you.isSpectator;
+
+    // Spectators see a waiting screen during review
+    $("readyGrid").style.display = amSpectator ? "none" : "";
+    $("reviewHint").style.display = amSpectator ? "none" : "";
+
     paintTranscript(v.transcript, $("reviewTurns"));
     var ready = v.ready || { for: false, against: false };
 
-    ["for", "against"].forEach(function (s) {
-      var cap = s === "for" ? "For" : "Against";
-      var done = !!ready[s];
-      var isMe = online.mySide === s;
-      var mark = $("ready" + cap + "Mark");
-      $("readySeat" + cap).querySelector(".ready-name").textContent =
-        v.seats[s].name || (s === "for" ? "For" : "Against");
-      $("readySeat" + cap).classList.toggle("done", done);
-      $("ready" + cap + "Btn").hidden = done || !isMe;
-      if (done) { mark.hidden = false; mark.textContent = "Ready ✓"; }
-      else if (!isMe) { mark.hidden = false; mark.textContent = "Waiting…"; }
-      else { mark.hidden = true; }
-    });
+    if (!amSpectator) {
+      ["for", "against"].forEach(function (s) {
+        var cap = s === "for" ? "For" : "Against";
+        var done = !!ready[s];
+        var isMe = online.mySide === s;
+        var mark = $("ready" + cap + "Mark");
+        $("readySeat" + cap).querySelector(".ready-name").textContent =
+          v.seats[s].name || (s === "for" ? "For" : "Against");
+        $("readySeat" + cap).classList.toggle("done", done);
+        $("ready" + cap + "Btn").hidden = done || !isMe;
+        if (done) { mark.hidden = false; mark.textContent = "Ready \u2713"; }
+        else if (!isMe) { mark.hidden = false; mark.textContent = "Waiting\u2026"; }
+        else { mark.hidden = true; }
+      });
 
-    var oppSide = online.mySide === "for" ? "against" : "for";
-    var oppName = v.seats[oppSide].name || "your opponent";
-    $("reviewHint").textContent = !ready[online.mySide]
-      ? "Press Next when you've finished reading the record."
-      : ready[oppSide]
-        ? "Both confirmed — off to the adjudicator."
-        : "Waiting for " + oppName + " to press Next.";
+      var oppSide = online.mySide === "for" ? "against" : "for";
+      var oppName = v.seats[oppSide].name || "your opponent";
+      $("reviewHint").textContent = !ready[online.mySide]
+        ? "Press Next when you've finished reading the record."
+        : ready[oppSide]
+          ? "Both confirmed \u2014 the judges will now score."
+          : "Waiting for " + oppName + " to press Next.";
+    }
   }
+
+  /* --- Crowd Jury: scoring screen --- */
+  function oRenderScoring() {
+    var v = online.view;
+    var amSpectator = !!v.you.isSpectator;
+    var JUDGE_MS = 120000;
+
+    // Set names
+    $("scoringNameFor").textContent = v.seats.for.name || "For";
+    $("scoringNameAgainst").textContent = v.seats.against.name || "Against";
+
+    // Player wait vs judge scoring form
+    var hasScored = !!v.you.hasScored;
+    var spectatorReady = !!v.you.spectatorReady;
+    var scoringDone = hasScored || spectatorReady;
+
+    if (!amSpectator) {
+      // Player sees waiting screen
+      $("scoringForm").hidden = true;
+      $("scoringDone").hidden = true;
+      $("scoringPlayerWait").hidden = false;
+      $("scoringTitle").textContent = "The jury is deliberating\u2026";
+      $("scoringSubtitle").textContent = "Sit tight while the judges score the debate.";
+    } else if (scoringDone) {
+      // Judge has submitted
+      $("scoringForm").hidden = true;
+      $("scoringDone").hidden = false;
+      $("scoringPlayerWait").hidden = true;
+      $("scoringTitle").textContent = "Judgement submitted!";
+      $("scoringSubtitle").textContent = "Waiting for all judges to finish\u2026";
+    } else {
+      // Judge scores
+      $("scoringForm").hidden = false;
+      $("scoringDone").hidden = true;
+      $("scoringPlayerWait").hidden = true;
+      $("scoringTitle").textContent = "Your turn to judge";
+      $("scoringSubtitle").textContent = "Score both sides out of 10 and leave your remarks.";
+    }
+
+    // Judges waiting dots
+    var specs = v.spectators || [];
+    var dotsWrap = $("judgeDotsWrap");
+    dotsWrap.innerHTML = "";
+    specs.forEach(function (s) {
+      var dot = document.createElement("div");
+      dot.className = "judge-dot" + (s.ready ? " done" : "");
+      dot.title = s.name;
+      dotsWrap.appendChild(dot);
+    });
+    var readyCount = specs.filter(function (s) { return s.ready; }).length;
+    $("judgesReadyCount").textContent = readyCount + "/" + specs.length + " ready";
+
+    // Timer (client-side countdown using scoringStartedAt + skew)
+    if (!online.scoringTimerHandle) {
+      online.scoringTimerHandle = setInterval(function () {
+        if (!online.view || online.view.phase !== "scoring") {
+          clearInterval(online.scoringTimerHandle);
+          online.scoringTimerHandle = null;
+          return;
+        }
+        var sAt = online.view.scoringStartedAt;
+        if (!sAt) return;
+        var elapsed = serverNow() - sAt;
+        var left = Math.max(0, JUDGE_MS - elapsed);
+        var urgent = left < 30000;
+        $("scoringTimerClock").textContent = fmt(left);
+        $("scoringTimerClock").classList.toggle("urgent", urgent);
+        var pct = (left / JUDGE_MS) * 100;
+        $("scoringProgressBar").style.width = pct + "%";
+        $("scoringProgressBar").classList.toggle("urgent", urgent);
+        if (left === 0) {
+          clearInterval(online.scoringTimerHandle);
+          online.scoringTimerHandle = null;
+          oPoll(); // force server sync to get verdict
+        }
+      }, 200);
+    }
+  }
+
+  // Score slider live updates
+  $("sliderFor").addEventListener("input", function () {
+    $("scoreNumFor").textContent = this.value;
+  });
+  $("sliderAgainst").addEventListener("input", function () {
+    $("scoreNumAgainst").textContent = this.value;
+  });
+
+  $("submitJudgementBtn").addEventListener("click", function () {
+    if (!online.active || online.scoringSubmitted) return;
+    var scoreFor = parseInt($("sliderFor").value, 10);
+    var scoreAgainst = parseInt($("sliderAgainst").value, 10);
+    var remarks = $("scoringRemarks").value.trim();
+    online.scoringSubmitted = true;
+    $("submitJudgementBtn").disabled = true;
+    oAction("submitJudgement", { scoreFor: scoreFor, scoreAgainst: scoreAgainst, remarks: remarks })
+      .catch(function (e) {
+        toast(e.message || "Couldn't submit judgement.");
+        online.scoringSubmitted = false;
+        $("submitJudgementBtn").disabled = false;
+      });
+  });
 
   /* --- judging / verdict --- */
   function oShowThinking() {
@@ -2347,11 +3156,68 @@
   function oRenderVerdictArea() {
     var v = online.view;
     var verdict = v.verdict ? normalize(v.verdict) : null;
+    var isJudgeMode = !!(v.config && v.config.judgeMode);
     renderVerdict(verdict, v.verdictNotice || null, v.seats.for.name || "For", v.seats.against.name || "Against");
-    $("rematchBtn").textContent = "Rematch — swap sides";
+    $("rematchBtn").textContent = "Rematch \u2014 swap sides";
     $("newDebateBtn").textContent = "New motion";
     $("resetBtn").textContent = "Leave room";
+    // Crowd Jury: show reallocate button for host
+    $("reallocateBtn").hidden = !(isJudgeMode && online.isHost);
+    // Also show jury breakdown if it's a Crowd Jury verdict
+    if (isJudgeMode && verdict && verdict.individualScores) {
+      renderVerdictJuryBreakdown(verdict);
+    }
   }
+
+  /* --- reallocate roles overlay --- */
+  $("reallocateBtn").addEventListener("click", function () {
+    var v = online.view;
+    if (!v) return;
+    var allPeople = [];
+    if (v.seats.for.clientId) allPeople.push({ id: v.seats.for.clientId, name: v.seats.for.name || "For", currentRole: "player" });
+    if (v.seats.against.clientId) allPeople.push({ id: v.seats.against.clientId, name: v.seats.against.name || "Against", currentRole: "player" });
+    (v.spectators || []).forEach(function (s) {
+      allPeople.push({ id: s.clientId, name: s.name || "Judge", currentRole: "spectator" });
+    });
+    var listEl = $("reallocateList");
+    listEl.innerHTML = "";
+    allPeople.forEach(function (p) {
+      var row = document.createElement("div");
+      row.className = "realloc-person";
+      var nameEl = document.createElement("div");
+      nameEl.className = "rp-name";
+      nameEl.textContent = p.name + (p.id === clientId ? " (you)" : "");
+      var sel = document.createElement("select");
+      sel.className = "rp-role-sel";
+      sel.dataset.personId = p.id;
+      var optP = document.createElement("option"); optP.value = "player"; optP.textContent = "Player"; if (p.currentRole === "player") optP.selected = true;
+      var optJ = document.createElement("option"); optJ.value = "spectator"; optJ.textContent = "Judge"; if (p.currentRole === "spectator") optJ.selected = true;
+      sel.appendChild(optP); sel.appendChild(optJ);
+      row.appendChild(nameEl); row.appendChild(sel);
+      listEl.appendChild(row);
+    });
+    $("reallocateOverlay").hidden = false;
+  });
+
+  $("reallocateCancelBtn").addEventListener("click", function () {
+    $("reallocateOverlay").hidden = true;
+  });
+
+  $("reallocateConfirmBtn").addEventListener("click", function () {
+    var sels = $("reallocateList").querySelectorAll(".rp-role-sel");
+    var players = [];
+    Array.prototype.forEach.call(sels, function (sel) {
+      if (sel.value === "player") players.push(sel.dataset.personId);
+    });
+    if (players.length !== 2) {
+      toast("Choose exactly 2 players."); return;
+    }
+    $("reallocateConfirmBtn").disabled = true;
+    oAction("reallocate", { players: players })
+      .then(function () { $("reallocateOverlay").hidden = true; })
+      .catch(function (e) { toast(e.message || "Couldn't reallocate."); })
+      .then(function () { $("reallocateConfirmBtn").disabled = false; });
+  });
 
   /* --- resume from URL / refresh --- */
   document.addEventListener("visibilitychange", function () {
