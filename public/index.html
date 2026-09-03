@@ -242,11 +242,6 @@
   }
 
   /* prep time */
-  .up-prep {
-    font-family: "Space Mono", monospace; font-size: 34px;
-    letter-spacing: .04em; color: var(--brass); margin: 6px 0 2px;
-    font-variant-numeric: tabular-nums;
-  }
   .prep-bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     padding: 12px 14px; margin-bottom: 12px;
@@ -874,8 +869,7 @@
   <div class="sheet">
     <div class="up-name" id="upName">Sam</div>
     <p class="up-role up-role-pill"><span class="pill" id="upPill">AGAINST</span></p>
-    <p class="up-hint">Gather your thoughts. Your own clock stays untouched until you take the floor — or until prep runs out.</p>
-    <div class="up-prep" id="upPrep">Prep 0:20</div>
+    <p class="up-hint">Take the floor and you'll get <strong id="upPrepHint">0:20</strong> to read the record before your own clock starts.</p>
     <div class="up-clock" id="upClock">5:00 remaining</div>
     <button class="btn-primary" id="takeFloorBtn">Take the floor</button>
   </div>
@@ -1308,9 +1302,11 @@
     openHandoff();
   }
 
-  /* Prep time: a head start before your own clock moves. 20s / 30s / 60s by
-     game length. Take the floor early to skip it; let it lapse and the turn
-     starts on its own. */
+  /* Prep time: a head start to read what your opponent just said, before your
+     own clock moves. 20s / 30s / 60s by game length. It runs on the debate
+     screen — not behind the handoff overlay — so the record is actually
+     readable. Start speaking early to skip it; let it lapse and the turn
+     begins on its own. */
   function prepMsFor(perSecs) {
     return perSecs === 900 ? 60000 : perSecs === 600 ? 30000 : 20000;
   }
@@ -1319,16 +1315,37 @@
     if (state.prepHandle) { clearInterval(state.prepHandle); state.prepHandle = null; }
   }
 
-  function takeFloor() {
-    clearPrep();
-    $("overlay").hidden = true;
-    beginTurn();
-  }
-
   function renderPrep() {
     var left = state.prepUntil - Date.now();
-    if (left <= 0) { takeFloor(); return; }
-    $("upPrep").textContent = "Prep " + fmt(left);
+    if (left <= 0) { beginTurn(); return; }
+    $("prepClock").textContent = fmt(left);
+  }
+
+  // Hand the laptop over first, then read on the clock-free prep timer.
+  function takeFloor() {
+    var side = state.active;
+    $("overlay").hidden = true;
+
+    $("floor").className = "floor " + side;
+    $("floorPill").textContent = side === "for" ? "FOR" : "AGAINST";
+    $("floorPill").className = "pill " + side;
+    $("floorName").textContent = names(side);
+    $("turnCounter").textContent = "Turn " + state.turnNo;
+    $("speech").value = "";
+    $("speech").disabled = true;
+    $("submitTurn").disabled = true;
+    $("passTurn").disabled = true;
+    $("speech").placeholder = "Read the record. Press “Start speaking now” when you're ready — your clock starts then.";
+    updateCount();
+
+    $("prepBar").hidden = false;
+    $("startSpeakingBtn").hidden = false;
+    $("prepLabel").textContent = "Your prep time — read the record";
+
+    clearPrep();
+    state.prepUntil = Date.now() + prepMsFor(state.perSecs);
+    renderPrep();
+    state.prepHandle = setInterval(renderPrep, 200);
   }
 
   function openHandoff() {
@@ -1340,12 +1357,8 @@
     $("upPill").textContent = side === "for" ? "FOR THE MOTION" : "AGAINST THE MOTION";
     $("upPill").className = "pill " + side;
     $("upClock").textContent = fmt(state.remaining[side]) + " remaining";
+    $("upPrepHint").textContent = fmt(prepMsFor(state.perSecs));
     $("takeFloorBtn").focus();
-
-    clearPrep();
-    state.prepUntil = Date.now() + prepMsFor(state.perSecs);
-    renderPrep();
-    state.prepHandle = setInterval(renderPrep, 200);
   }
 
   $("takeFloorBtn").addEventListener("click", function () {
@@ -1355,6 +1368,9 @@
 
   function beginTurn() {
     var side = state.active;
+    clearPrep();
+    $("prepBar").hidden = true;
+    $("speech").placeholder = "Make your case. Rebut what was just said, bring evidence, and land a clear point…";
     state.turnStart = Date.now();
     state.running = true;
     $("floor").className = "floor " + side;
@@ -1459,6 +1475,7 @@
   function endDebate(reason) {
     commitTime();
     clearPrep();
+    $("prepBar").hidden = true;
     state.endedReason = reason;
     state.ready = { for: false, against: false };
     show("review");
@@ -1946,7 +1963,7 @@
     var myPrep = prepping && act === online.mySide;
     $("prepBar").hidden = !prepping;
     $("startSpeakingBtn").hidden = !myPrep;
-    $("prepLabel").textContent = myPrep ? "Your prep time" : speaker + " is preparing";
+    $("prepLabel").textContent = myPrep ? "Your prep time — read the record" : speaker + " is reading the record";
     if (prepping) $("prepClock").textContent = fmt(v.clock.prepUntil - serverNow());
 
     var busy = online.submitting;
@@ -1990,7 +2007,7 @@
   $("passTurn").addEventListener("click", function () { if (online.active) oSubmitTurn(true); });
 
   $("startSpeakingBtn").addEventListener("click", function () {
-    if (!online.active) return;
+    if (!online.active) { beginTurn(); return; }
     $("startSpeakingBtn").disabled = true;
     oAction("speak", {})
       .catch(function (e) { toast(e.message || "Couldn't start your turn."); })
