@@ -537,6 +537,27 @@
   .assess li { padding-left: 22px; position: relative; }
   .assess li.s::before { content: "+"; position: absolute; left: 4px; color: var(--for); font-family: "Space Mono", monospace; font-weight: 700; }
   .assess li.w::before { content: "\2212"; position: absolute; left: 4px; color: var(--against); font-family: "Space Mono", monospace; font-weight: 700; }
+  .point-expander { margin: 0; }
+  .point-summary {
+    cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  }
+  .point-summary::-webkit-details-marker { display: none; }
+  .point-txt { flex: 1; }
+  .example-tag {
+    font-family: "Space Mono", monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--ink-soft); background: var(--chamber);
+    padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line);
+    white-space: nowrap; user-select: none; transition: all .15s ease;
+  }
+  .point-summary:hover .example-tag { color: var(--ink); border-color: var(--line-strong); background: var(--surface); }
+  .point-expander[open] .example-tag { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .point-example-quote {
+    margin: 7px 0 4px; padding: 8px 12px; font-size: 13.5px; font-style: italic;
+    color: var(--ink); background: var(--chamber); border-left: 3px solid var(--brass);
+    border-radius: 4px 8px 8px 4px; line-height: 1.45;
+  }
+  .turn.conceded { border-color: var(--against-line); background: var(--against-bg); }
+  .turn.conceded .body { font-style: italic; color: var(--against); font-weight: 600; }
   .assess .advice {
     margin-top: 16px; padding: 12px 14px; border-radius: 10px;
     background: var(--chamber); font-style: italic; color: var(--ink-soft);
@@ -731,7 +752,6 @@
 
     <div class="stage-head">
       <div class="motion-small" id="stageMotive"></div>
-      <button class="btn-ghost" id="endDebateBtn">End &amp; judge now</button>
     </div>
 
     <div class="clocks">
@@ -765,7 +785,8 @@
       <textarea id="speech" placeholder="Make your case. Rebut what was just said, bring evidence, and land a clear point…" aria-label="Your argument"></textarea>
       <div class="floor-actions">
         <button class="btn-primary" id="submitTurn">Submit &amp; pass over →</button>
-        <button class="btn-ghost" id="passTurn">Yield without speaking</button>
+        <button class="btn-ghost" id="requestEndBtn">Request end</button>
+        <button class="btn-ghost" id="concedeTurn">Concede</button>
         <span class="count" id="wordCount">0 words</span>
       </div>
     </div>
@@ -869,9 +890,22 @@
   <div class="sheet">
     <div class="up-name" id="upName">Sam</div>
     <p class="up-role up-role-pill"><span class="pill" id="upPill">AGAINST</span></p>
-    <p class="up-hint">Take the floor and you'll get <strong id="upPrepHint">0:20</strong> to read the record before your own clock starts.</p>
+    <p class="up-hint" id="upHint">Take the floor and you'll get <strong id="upPrepHint">0:20</strong> to read the record before your own clock starts.</p>
     <div class="up-clock" id="upClock">5:00 remaining</div>
     <button class="btn-primary" id="takeFloorBtn">Take the floor</button>
+  </div>
+</div>
+
+<!-- end request overlay (hot-seat & online) -->
+<div class="overlay" id="endRequestOverlay" hidden>
+  <div class="sheet">
+    <div class="up-name" style="font-size:clamp(22px, 5vw, 30px);" id="endReqModalTitle">End the Debate?</div>
+    <p class="up-hint" id="endReqModalText" style="margin:14px 0 24px; font-size:16px; line-height:1.5;">Alex wants to end the debate now and call the adjudicator.</p>
+    <div class="floor-actions" style="justify-content:center; gap:12px;" id="endReqModalButtons">
+      <button class="btn-primary" id="endReqAcceptBtn">Accept &amp; Call Judge</button>
+      <button class="btn-ghost" id="endReqRefuseBtn">Refuse &amp; Continue Debate</button>
+      <button class="btn-ghost" id="endReqCancelBtn" hidden>Cancel Request</button>
+    </div>
   </div>
 </div>
 
@@ -1093,7 +1127,15 @@
   }
   function arr(x) {
     if (!Array.isArray(x)) return [];
-    return x.filter(function (i) { return typeof i === "string" && i.trim(); }).slice(0, 5);
+    return x.map(function (i) {
+      if (typeof i === "string" && i.trim()) return { point: i.trim(), example: "" };
+      if (i && typeof i === "object") {
+        var p = (i.point || i.title || i.text || "").toString().trim();
+        var ex = (i.example || i.quote || i.evidence || "").toString().trim();
+        if (p) return { point: p, example: ex };
+      }
+      return null;
+    }).filter(Boolean).slice(0, 5);
   }
   function normalize(d) {
     d = d && typeof d === "object" ? d : {};
@@ -1127,6 +1169,15 @@
     toast._t = setTimeout(function () { el.hidden = true; }, 3400);
   }
 
+  function fmtDuration(ms) {
+    if (!ms || ms < 1000) return "";
+    var s = Math.round(ms / 1000);
+    if (s < 60) return s + "s";
+    var m = Math.floor(s / 60);
+    var remS = s % 60;
+    return m + "m" + (remS > 0 ? " " + remS + "s" : "");
+  }
+
   function paintTranscript(list, box) {
     box = box || $("turns");
     if (!list || !list.length) {
@@ -1136,19 +1187,19 @@
     box.innerHTML = "";
     list.forEach(function (t, i) {
       var d = document.createElement("div");
-      d.className = "turn " + t.side + (t.passed ? " passed" : "");
+      var isConceded = !!t.conceded;
+      d.className = "turn " + t.side + (isConceded ? " conceded" : t.passed ? " passed" : "");
       var meta = document.createElement("div");
       meta.className = "meta";
-      meta.textContent = (t.name || "Speaker") + " · " + (t.side === "for" ? "for" : "against") + " · remark " + (i + 1);
+      var durStr = (t.durationMs && !isConceded) ? " · took " + fmtDuration(t.durationMs) : "";
+      meta.textContent = (t.name || "Speaker") + " · " + (t.side === "for" ? "for" : "against") + " · remark " + (i + 1) + durStr;
       var body = document.createElement("div");
       body.className = "body";
-      body.textContent = t.passed ? "(yielded without speaking)" : t.text;
+      body.textContent = isConceded ? "(conceded the debate)" : t.passed ? "(passed without speaking)" : t.text;
       d.appendChild(meta); d.appendChild(body);
       box.appendChild(d);
     });
-    if (box.lastChild && box.lastChild.scrollIntoView) {
-      box.lastChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
+    // Auto-scroll removed so user reading position is preserved without jumping down!
   }
 
   /* shared "deliberating" message rotation */
@@ -1186,7 +1237,19 @@
     items.forEach(function (t) {
       var li = document.createElement("li");
       li.className = cls;
-      li.textContent = t;
+      var p = typeof t === "object" ? t.point : t;
+      var ex = (typeof t === "object" && t.example) ? t.example : "";
+      if (!ex) {
+        li.textContent = p;
+      } else {
+        li.innerHTML = '<details class="point-expander">' +
+          '<summary class="point-summary">' +
+            '<span class="point-txt">' + escapeHtml(p) + '</span>' +
+            '<span class="example-tag">Example ▾</span>' +
+          '</summary>' +
+          '<div class="point-example-quote">“' + escapeHtml(ex) + '”</div>' +
+        '</details>';
+      }
       ul.appendChild(li);
     });
   }
@@ -1326,6 +1389,12 @@
     var side = state.active;
     $("overlay").hidden = true;
 
+    // Opening speaker has no opponent remarks to read — start speaking immediately without prep
+    if (!state.transcript || state.transcript.length === 0) {
+      beginTurn();
+      return;
+    }
+
     $("floor").className = "floor " + side;
     $("floorPill").textContent = side === "for" ? "FOR" : "AGAINST";
     $("floorPill").className = "pill " + side;
@@ -1334,7 +1403,8 @@
     $("speech").value = "";
     $("speech").disabled = true;
     $("submitTurn").disabled = true;
-    $("passTurn").disabled = true;
+    $("requestEndBtn").disabled = true;
+    $("concedeTurn").disabled = true;
     $("speech").placeholder = "Read the record. Press “Start speaking now” when you're ready — your clock starts then.";
     updateCount();
 
@@ -1357,8 +1427,12 @@
     $("upPill").textContent = side === "for" ? "FOR THE MOTION" : "AGAINST THE MOTION";
     $("upPill").className = "pill " + side;
     $("upClock").textContent = fmt(state.remaining[side]) + " remaining";
-    $("upPrepHint").textContent = fmt(prepMsFor(state.perSecs));
-    $("takeFloorBtn").focus();
+    if (!state.transcript || state.transcript.length === 0) {
+      $("upHint").textContent = "You open the debate. Take the floor and set the terms of the motion.";
+    } else {
+      $("upHint").innerHTML = 'Take the floor and you\'ll get <strong id="upPrepHint">' + fmt(prepMsFor(state.perSecs)) + '</strong> to read the record before your own clock starts.';
+    }
+    $("takeFloorBtn").focus({ preventScroll: true });
   }
 
   $("takeFloorBtn").addEventListener("click", function () {
@@ -1380,9 +1454,10 @@
     $("speech").value = "";
     $("speech").disabled = false;
     $("submitTurn").disabled = false;
-    $("passTurn").disabled = false;
+    $("requestEndBtn").disabled = false;
+    $("concedeTurn").disabled = false;
     updateCount();
-    $("speech").focus();
+    $("speech").focus({ preventScroll: true });
     $("clockFor").classList.toggle("active", side === "for");
     $("clockAgainst").classList.toggle("active", side === "against");
     $("clockFor").classList.toggle("pulsing", side === "for");
@@ -1417,7 +1492,9 @@
 
   function commitTime() {
     if (state.running) {
-      state.remaining[state.active] -= (Date.now() - state.turnStart);
+      var elapsed = Date.now() - state.turnStart;
+      state.lastDurationMs = Math.max(0, elapsed);
+      state.remaining[state.active] -= elapsed;
       if (state.remaining[state.active] < 0) state.remaining[state.active] = 0;
     }
     state.running = false;
@@ -1426,10 +1503,11 @@
 
   function flushTurn(auto) {
     var text = $("speech").value.trim();
+    var durationMs = state.lastDurationMs || 0;
     if (text) {
-      state.transcript.push({ side: state.active, name: names(state.active), text: text, passed: false });
+      state.transcript.push({ side: state.active, name: names(state.active), text: text, passed: false, durationMs: durationMs });
     } else if (!auto) {
-      state.transcript.push({ side: state.active, name: names(state.active), text: "", passed: true });
+      state.transcript.push({ side: state.active, name: names(state.active), text: "", passed: true, durationMs: durationMs });
     }
     $("speech").value = "";
     renderTranscript();
@@ -1447,26 +1525,83 @@
   $("submitTurn").addEventListener("click", function () {
     if (online.active) return;
     if (!state.running) return;
-    if (!$("speech").value.trim()) { $("speech").focus(); return; }
+    if (!$("speech").value.trim()) { $("speech").focus({ preventScroll: true }); return; }
     commitTime();
     flushTurn(false);
     nextTurn();
   });
-  $("passTurn").addEventListener("click", function () {
-    if (online.active) return;
+
+  function concedeDebate() {
+    if (online.active) {
+      oConcede();
+      return;
+    }
     if (!state.running) return;
     commitTime();
-    flushTurn(false);
-    nextTurn();
-  });
-  $("speech").addEventListener("input", updateCount);
+    state.transcript.push({
+      side: state.active,
+      name: names(state.active),
+      text: "",
+      passed: true,
+      conceded: true,
+      durationMs: state.lastDurationMs || 0
+    });
+    state.concededBy = state.active;
+    renderTranscript();
+    endDebate("concession");
+  }
+  $("concedeTurn").addEventListener("click", concedeDebate);
 
-  $("endDebateBtn").addEventListener("click", function () {
-    if (online.active) { oEndDebate(); return; }
+  function requestEndDebate() {
+    if (online.active) {
+      oRequestEnd();
+      return;
+    }
+    if (!state.running) return;
     commitTime();
+    var side = state.active;
+    var opp = other(side);
+    $("endReqModalTitle").textContent = "End the Debate?";
+    $("endReqModalText").innerHTML = '<strong>' + escapeHtml(names(side)) + '</strong> has requested to end the debate and call the adjudicator.<br><br>Pass the device to <strong>' + escapeHtml(names(opp)) + '</strong> to decide:';
+    $("endReqAcceptBtn").hidden = false;
+    $("endReqRefuseBtn").hidden = false;
+    $("endReqCancelBtn").hidden = true;
+    $("endRequestOverlay").hidden = false;
+  }
+  $("requestEndBtn").addEventListener("click", requestEndDebate);
+
+  $("endReqAcceptBtn").addEventListener("click", function () {
+    if (online.active) {
+      $("endRequestOverlay").hidden = true;
+      oAction("respondEnd", { accept: true }).catch(function (e) { toast(e.message || "Error responding."); });
+      return;
+    }
+    $("endRequestOverlay").hidden = true;
     flushTurn(true);
-    endDebate("manual");
+    endDebate("mutual_end");
   });
+
+  $("endReqRefuseBtn").addEventListener("click", function () {
+    if (online.active) {
+      $("endRequestOverlay").hidden = true;
+      oAction("respondEnd", { accept: false }).catch(function (e) { toast(e.message || "Error responding."); });
+      return;
+    }
+    $("endRequestOverlay").hidden = true;
+    toast(names(other(state.active)) + " refused the end request. Debate continues!");
+    state.turnStart = Date.now();
+    state.running = true;
+    state.tickHandle = setInterval(tick, 200);
+  });
+
+  $("endReqCancelBtn").addEventListener("click", function () {
+    if (online.active) {
+      $("endRequestOverlay").hidden = true;
+      oAction("cancelEndRequest", {}).catch(function (e) { toast(e.message || "Error canceling."); });
+    }
+  });
+
+  $("speech").addEventListener("input", updateCount);
 
   function renderTranscript() { paintTranscript(state.transcript); }
 
@@ -1476,6 +1611,7 @@
     commitTime();
     clearPrep();
     $("prepBar").hidden = true;
+    $("endRequestOverlay").hidden = true;
     state.endedReason = reason;
     state.ready = { for: false, against: false };
     show("review");
@@ -1522,7 +1658,8 @@
       "Time expired for " + names(state.active) + ". Re-reading the record, weighing each clash…";
 
     var spoke = state.transcript.some(function (t) { return !t.passed && t.text; });
-    if (!spoke) {
+    var hadConcession = state.transcript.some(function (t) { return !!t.conceded; });
+    if (!spoke && !hadConcession) {
       renderVerdict({
         winner: "draw",
         headline: "No debate took place.",
@@ -1543,7 +1680,7 @@
       nameFor: state.nameFor,
       nameAgainst: state.nameAgainst,
       transcript: state.transcript.map(function (t) {
-        return { side: t.side, name: t.name, passed: !!t.passed, text: t.passed ? "" : t.text };
+        return { side: t.side, name: t.name, passed: !!t.passed, conceded: !!t.conceded, text: t.passed ? "" : t.text };
       })
     };
 
@@ -1952,7 +2089,7 @@
     if (myTurn && !online._myTurnLast) {
       $("speech").value = "";
       updateCount();
-      setTimeout(function () { if (currentScreen === "debate") $("speech").focus(); }, 40);
+      setTimeout(function () { if (currentScreen === "debate") $("speech").focus({ preventScroll: true }); }, 40);
     }
     if (!myTurn && online._myTurnLast) { $("speech").value = ""; updateCount(); }
     online._myTurnLast = myTurn;
@@ -1969,12 +2106,35 @@
     var busy = online.submitting;
     $("speech").disabled = !myTurn || busy;
     $("submitTurn").disabled = !myTurn || busy;
-    $("passTurn").disabled = !myTurn || busy;
+    $("requestEndBtn").disabled = !myTurn || busy;
+    $("concedeTurn").disabled = busy;
     $("speech").placeholder = myPrep
       ? "Prep time — press “Start speaking now” when you're ready."
       : myTurn
         ? "Rebut what was just said, bring evidence, and land a clear point…"
         : "It's " + speaker + "'s turn. You take the floor next.";
+
+    // Handle end request modal for online mode
+    if (v.endRequest) {
+      if (v.endRequest.from === online.mySide) {
+        $("endReqModalTitle").textContent = "End Requested";
+        $("endReqModalText").textContent = "Waiting for your opponent to accept or refuse the request to end the debate…";
+        $("endReqAcceptBtn").hidden = true;
+        $("endReqRefuseBtn").hidden = true;
+        $("endReqCancelBtn").hidden = false;
+        $("endRequestOverlay").hidden = false;
+      } else {
+        var reqSpeaker = (v.endRequest.from === "for") ? (v.seats.for.name || "For") : (v.seats.against.name || "Against");
+        $("endReqModalTitle").textContent = "Opponent Wants to End";
+        $("endReqModalText").innerHTML = '<strong>' + escapeHtml(reqSpeaker) + '</strong> has requested to end the debate and call the adjudicator.<br><br>Do you accept or refuse?';
+        $("endReqAcceptBtn").hidden = false;
+        $("endReqRefuseBtn").hidden = false;
+        $("endReqCancelBtn").hidden = true;
+        $("endRequestOverlay").hidden = false;
+      }
+    } else if (online.active) {
+      $("endRequestOverlay").hidden = true;
+    }
 
     var oppSide = online.mySide === "for" ? "against" : "for";
     var opp = v.seats[oppSide];
@@ -1991,11 +2151,12 @@
     var v = online.view;
     if (!v || v.phase !== "debate" || v.clock.active !== online.mySide) return;
     var text = $("speech").value.trim();
-    if (!passed && !text) { $("speech").focus(); return; }
+    if (!passed && !text) { $("speech").focus({ preventScroll: true }); return; }
     online.submitting = true;
     $("speech").disabled = true;
     $("submitTurn").disabled = true;
-    $("passTurn").disabled = true;
+    $("requestEndBtn").disabled = true;
+    $("concedeTurn").disabled = true;
     oAction("turn", { text: passed ? "" : text, passed: !!passed })
       .catch(function (e) {
         toast(e.message || "Couldn't send that.");
@@ -2003,8 +2164,21 @@
       })
       .then(function () { online.submitting = false; });
   }
-  $("submitTurn").addEventListener("click", function () { if (online.active) oSubmitTurn(false); });
-  $("passTurn").addEventListener("click", function () { if (online.active) oSubmitTurn(true); });
+
+  function oConcede() {
+    if (!online.active || online.submitting) return;
+    if (!window.confirm("Are you sure you want to concede the debate? The debate will end immediately.")) return;
+    online.submitting = true;
+    oAction("concede", {})
+      .catch(function (e) { toast(e.message || "Couldn't concede."); })
+      .then(function () { online.submitting = false; });
+  }
+
+  function oRequestEnd() {
+    if (!online.active) return;
+    oAction("requestEnd", {})
+      .catch(function (e) { toast(e.message || "Couldn't request end."); });
+  }
 
   $("startSpeakingBtn").addEventListener("click", function () {
     if (!online.active) { beginTurn(); return; }
@@ -2013,10 +2187,6 @@
       .catch(function (e) { toast(e.message || "Couldn't start your turn."); })
       .then(function () { $("startSpeakingBtn").disabled = false; });
   });
-
-  function oEndDebate() {
-    oAction("end", { text: $("speech").value }).catch(function (e) { toast(e.message || "Couldn't end the debate."); });
-  }
 
   /* --- review: both speakers press Next --- */
   function oRenderReview() {
@@ -2081,7 +2251,7 @@
       nameFor: v.seats.for.name || "For",
       nameAgainst: v.seats.against.name || "Against",
       transcript: (v.transcript || []).map(function (t) {
-        return { side: t.side, name: t.name, passed: !!t.passed, text: t.passed ? "" : t.text };
+        return { side: t.side, name: t.name, passed: !!t.passed, conceded: !!t.conceded, text: t.passed ? "" : t.text };
       })
     };
     return fetch("/api/judge", {

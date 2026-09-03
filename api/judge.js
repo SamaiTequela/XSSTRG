@@ -42,28 +42,41 @@ function buildPrompt({ motion, nameFor, nameAgainst, transcript }) {
   lines.push(`${nameFor} argued FOR the motion.`);
   lines.push(`${nameAgainst} argued AGAINST the motion.`);
   lines.push("");
+
+  const concession = transcript.find((t) => t.conceded);
+  if (concession) {
+    const concededSide = concession.side;
+    const winnerSide = concededSide === "for" ? "against" : "for";
+    const winnerName = winnerSide === "for" ? nameFor : nameAgainst;
+    const loserName = concededSide === "for" ? nameFor : nameAgainst;
+    lines.push(
+      `CRITICAL RULE: ${loserName} (${concededSide.toUpperCase()}) conceded the debate. You MUST declare ${winnerName} (${winnerSide.toUpperCase()}) the winner by concession in the headline and rationale, while providing constructive feedback and scoring on the arguments made.`
+    );
+    lines.push("");
+  }
+
   lines.push("TRANSCRIPT (in order):");
   if (!transcript.length) lines.push("(no remarks)");
   transcript.forEach((t, i) => {
+    const status = t.conceded ? "[conceded the debate]" : t.passed ? "[passed without speaking]" : t.text;
     lines.push(
-      `${i + 1}. ${t.name} (${t.side === "for" ? "FOR" : "AGAINST"}): ` +
-        (t.passed ? "[yielded without speaking]" : t.text)
+      `${i + 1}. ${t.name} (${t.side === "for" ? "FOR" : "AGAINST"}): ${status}`
     );
   });
   lines.push("");
   lines.push(
-    "Decide who won on the balance of argument. If one side barely engaged, that should be " +
-      "reflected. A draw is allowed only if the debate is genuinely level."
+    "Decide who won on the balance of argument (unless there was a concession above). A draw is allowed only if the debate is genuinely level."
   );
   lines.push("");
+  lines.push("For each strength and weakness, provide both a concise point and a specific example/quote from the transcript.");
   lines.push("Reply with ONLY a JSON object of exactly this shape, no prose around it:");
   lines.push(
     '{"winner":"for"|"against"|"draw",' +
       '"headline":"<=14 words naming the result and the deciding reason",' +
       '"rationale":"2-3 sentences on the decision and the central clash",' +
-      '"for":{"score":<integer 0-10>,"strengths":["short phrase","short phrase"],' +
-      '"weaknesses":["short phrase","short phrase"],"advice":"one concrete sentence"},' +
-      '"against":{"score":<integer 0-10>,"strengths":["..."],"weaknesses":["..."],"advice":"..."}}'
+      '"for":{"score":<integer 0-10>,"strengths":[{"point":"short summary phrase","example":"quote or specific argument from transcript"}],' +
+      '"weaknesses":[{"point":"short summary phrase","example":"quote or specific argument from transcript"}],"advice":"one concrete sentence"},' +
+      '"against":{"score":<integer 0-10>,"strengths":[{"point":"...","example":"..."}],"weaknesses":[{"point":"...","example":"..."}],"advice":"..."}}'
   );
   return lines.join("\n");
 }
@@ -93,15 +106,30 @@ const clampScore = (n) => {
   n = Math.round(Number(n));
   return Number.isFinite(n) ? Math.max(0, Math.min(10, n)) : null;
 };
-const strArr = (x) =>
-  Array.isArray(x) ? x.filter((i) => typeof i === "string" && i.trim()).slice(0, 5) : [];
+const pointArr = (x) => {
+  if (!Array.isArray(x)) return [];
+  return x
+    .map((item) => {
+      if (typeof item === "string" && item.trim()) {
+        return { point: clip(item, 180), example: "" };
+      }
+      if (item && typeof item === "object") {
+        const point = clip(item.point || item.title || item.text, 180);
+        const example = clip(item.example || item.quote || item.evidence, 300);
+        if (point) return { point, example };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+};
 
 function normalizeSide(o) {
   o = o && typeof o === "object" ? o : {};
   return {
     score: clampScore(o.score),
-    strengths: strArr(o.strengths),
-    weaknesses: strArr(o.weaknesses),
+    strengths: pointArr(o.strengths),
+    weaknesses: pointArr(o.weaknesses),
     advice: typeof o.advice === "string" ? o.advice : "",
   };
 }
