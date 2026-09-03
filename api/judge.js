@@ -1,17 +1,19 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 /*
- * Which Claude model scores the debate. Rough cost per verdict (input is
- * small, output is one short JSON object):
- *   claude-haiku-4-5   ~$0.005   fastest, blunter reasoning
- *   claude-sonnet-5    ~$0.02    <- default: good judgement, cheap
- *   claude-opus-5      ~$0.06    sharpest verdicts, slower
- * Change the string, redeploy. Effort trades depth for speed/cost.
+ * Point of Order - Debate Adjudicator
+ * Powered by Google Gemini
  */
-const MODEL = "claude-sonnet-5";
-const EFFORT = "medium"; // "low" | "medium" | "high" | "xhigh" | "max"
 
-const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY ||
+  process.env.GOOGLE_API_KEY;
+
+// Available models in priority order for resilience
+const MODELS = [
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-pro-latest",
+];
 
 // --- basic per-IP rate limit (best-effort; resets when the function cold-starts) ---
 const WINDOW_MS = 10 * 60 * 1000;
@@ -116,6 +118,45 @@ function normalizeVerdict(d) {
   };
 }
 
+async function queryGemini(prompt) {
+  let lastError = null;
+
+  for (const model of MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+        GEMINI_API_KEY
+      )}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        lastError = new Error(`Model ${model} returned ${response.status}: ${errText}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (replyText) {
+        return replyText;
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Adjudicator service unavailable.");
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -170,23 +211,18 @@ export default async function handler(req, res) {
     });
   }
 
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({
+      error: "The judge isn't configured yet. (Server: check GEMINI_API_KEY.)",
+    });
+  }
+
   const prompt = buildPrompt({ motion, nameFor, nameAgainst, transcript });
 
   try {
-    const message = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 2500,
-      output_config: { effort: EFFORT },
-      messages: [{ role: "user", content: prompt }],
-    });
+    const rawOutput = await queryGemini(prompt);
+    const parsed = extractJson(rawOutput);
 
-    const text = (message.content || [])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
-
-    const parsed = extractJson(text);
     if (!parsed) {
       return res.status(502).json({
         error: "The adjudicator's reply came back garbled. Hit Rematch to run it again.",
@@ -194,19 +230,9 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ verdict: normalizeVerdict(parsed) });
   } catch (err) {
-    const status = err && typeof err.status === "number" ? err.status : 0;
-    if (status === 401 || status === 403) {
-      // Almost always a missing/invalid ANTHROPIC_API_KEY in the deployment.
-      return res
-        .status(500)
-        .json({ error: "The judge isn't configured yet. (Server: check ANTHROPIC_API_KEY.)" });
-    }
-    if (status === 429 || (status >= 500 && status < 600)) {
-      return res
-        .status(429)
-        .json({ error: "The adjudicator is overloaded right now. Wait a minute, then hit Rematch." });
-    }
     console.error("judge error:", err);
-    return res.status(500).json({ error: "The verdict couldn't be produced. Try Rematch." });
+    return res
+      .status(500)
+      .json({ error: "The adjudicator is currently unavailable. Try Rematch in a moment." });
   }
 }
