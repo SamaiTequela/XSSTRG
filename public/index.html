@@ -211,6 +211,35 @@
     font-family: "Newsreader", serif; font-style: italic;
     color: var(--ink-soft); font-weight: 400;
   }
+  .topic-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* write-your-own motion */
+  .motion-edit {
+    padding: 0 18px 18px; border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .motion-edit textarea {
+    width: 100%; resize: vertical; min-height: 74px;
+    padding: 12px 14px; font-size: 17px; line-height: 1.35;
+    font-family: "Newsreader", serif;
+    background: var(--ground); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 10px;
+  }
+  .motion-edit textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .motion-edit-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 12px; flex-wrap: wrap;
+  }
+  .motion-count {
+    font-family: "Space Mono", monospace; font-size: 12px;
+    color: var(--ink-soft); margin-left: auto;
+  }
+  .motion-count.over { color: var(--against, #b3261e); }
+  .motion-hint {
+    font-family: "Space Mono", monospace; font-size: 11px;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 8px 0 0;
+  }
 
   .length-row {
     margin-top: 22px; display: flex; align-items: center;
@@ -536,9 +565,23 @@
       <div class="topic-box">
         <div class="topic-head">
           <span class="eyebrow">This house believes</span>
-          <button class="btn-ghost" id="rerollTopic" style="padding:6px 12px;font-size:13px;">↻ New motion</button>
+          <div class="topic-actions">
+            <button class="btn-ghost" id="writeTopic" style="padding:6px 12px;font-size:13px;">✎ Write your own</button>
+            <button class="btn-ghost" id="rerollTopic" style="padding:6px 12px;font-size:13px;">↻ New motion</button>
+          </div>
         </div>
         <div class="motion" id="motionText">—</div>
+        <div class="motion-edit" id="motionEdit" hidden>
+          <label for="motionInput" class="eyebrow" style="display:block;margin-bottom:7px;">Your motion</label>
+          <textarea id="motionInput" maxlength="300" rows="2" spellcheck="true"
+                    placeholder="e.g. Homework should be abolished in schools."></textarea>
+          <div class="motion-edit-row">
+            <button class="btn-primary" id="motionSave" style="padding:9px 18px;font-size:14px;">Use this motion</button>
+            <button class="btn-ghost" id="motionCancel" style="padding:9px 14px;font-size:14px;">Cancel</button>
+            <span class="motion-count" id="motionCount">0/300</span>
+          </div>
+          <p class="motion-hint">Phrase it as a statement one side defends and the other attacks.</p>
+        </div>
       </div>
 
       <div class="length-row">
@@ -603,9 +646,23 @@
     <div class="topic-box">
       <div class="topic-head">
         <span class="eyebrow">This house believes</span>
-        <button class="btn-ghost" id="lobbyReroll" style="padding:6px 12px;font-size:13px;" hidden>↻ New motion</button>
+        <div class="topic-actions">
+          <button class="btn-ghost" id="lobbyWrite" style="padding:6px 12px;font-size:13px;" hidden>✎ Write your own</button>
+          <button class="btn-ghost" id="lobbyReroll" style="padding:6px 12px;font-size:13px;" hidden>↻ New motion</button>
+        </div>
       </div>
       <div class="motion" id="lobbyMotion">—</div>
+      <div class="motion-edit" id="lobbyMotionEdit" hidden>
+        <label for="lobbyMotionInput" class="eyebrow" style="display:block;margin-bottom:7px;">Your motion</label>
+        <textarea id="lobbyMotionInput" maxlength="300" rows="2" spellcheck="true"
+                  placeholder="e.g. Homework should be abolished in schools."></textarea>
+        <div class="motion-edit-row">
+          <button class="btn-primary" id="lobbyMotionSave" style="padding:9px 18px;font-size:14px;">Use this motion</button>
+          <button class="btn-ghost" id="lobbyMotionCancel" style="padding:9px 14px;font-size:14px;">Cancel</button>
+          <span class="motion-count" id="lobbyMotionCount">0/300</span>
+        </div>
+        <p class="motion-hint">Both speakers will see it as soon as you save.</p>
+      </div>
     </div>
 
     <div class="length-row">
@@ -784,7 +841,69 @@
     "Working from a laptop in a café is antisocial.",
     "Superhero films have ruined cinema.",
     "Daylight saving time should be abolished.",
-    "Self-driving cars should be mandatory once they are safer than humans."
+    "Self-driving cars should be mandatory once they are safer than humans.",
+    "Social media should require verified age checks.",
+    "Anonymous online accounts do more harm than good.",
+    "AI-generated art should not be eligible for prizes.",
+    "Smartphones should be banned in schools.",
+    "The right to be forgotten should be universal.",
+    "Governments should never be given encryption backdoors.",
+    "Algorithms that affect the public should be legally auditable.",
+    "Facial recognition in public spaces should be banned.",
+    "Open-source software has done more for society than proprietary software.",
+    "Targeted advertising should be outlawed.",
+    "Meat consumption should be taxed.",
+    "Private jets should be banned.",
+    "Geoengineering research should be accelerated.",
+    "Wealthy nations owe climate reparations to poorer ones.",
+    "Bottled water should be banned.",
+    "Rewilding should take priority over farmland.",
+    "Prisons should focus on rehabilitation rather than punishment.",
+    "All drugs should be decriminalised.",
+    "A universal basic income should replace existing welfare.",
+    "Monarchies have no place in the modern world.",
+    "Political advertising should be banned.",
+    "The voting age should be lowered to 16.",
+    "Term limits should apply to every elected official.",
+    "Juries should be replaced by professional judges.",
+    "Immigration should be substantially liberalised.",
+    "Lobbying should be illegal.",
+    "Referendums are a poor way to make policy.",
+    "Anonymous political donations should be outlawed.",
+    "University tuition should be free.",
+    "Grades should be abolished.",
+    "Philosophy should be taught in every school.",
+    "Coding should be a core subject alongside mathematics.",
+    "School uniforms should be mandatory.",
+    "Exams should always be open-book.",
+    "Unpaid internships should be illegal.",
+    "Employers should never monitor their staff's activity.",
+    "Inheritance should be taxed far more heavily.",
+    "Rent control does more harm than good.",
+    "Trade unions are more necessary now than ever.",
+    "Mandatory retirement ages should be abolished.",
+    "Human cloning should remain banned.",
+    "Animal testing is never justifiable.",
+    "Assisted dying should be legal.",
+    "Organ donation should be opt-out by default.",
+    "Parents should not be allowed to select their child's traits.",
+    "Life-extension research is a misuse of resources.",
+    "We should not attempt contact with alien civilisations.",
+    "Museums should return all colonial-era artefacts.",
+    "The art should be separated from the artist.",
+    "Streaming has ruined the music industry.",
+    "Awards ceremonies are meaningless.",
+    "Classic novels should not be rewritten for modern readers.",
+    "International sport should abolish national teams.",
+    "Esports are real sports.",
+    "Nostalgia is holding popular culture back.",
+    "Breakfast is not the most important meal of the day.",
+    "The sequel is always worse than the original.",
+    "Small talk is a waste of time.",
+    "Birthdays should stop being celebrated after thirty.",
+    "Emojis have improved written communication.",
+    "There is a correct way to hang toilet paper.",
+    "Queuing is the highest form of civilisation."
   ];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -845,6 +964,44 @@
     do { m = MOTIONS[Math.floor(Math.random() * MOTIONS.length)]; }
     while (m === exclude && MOTIONS.length > 1);
     return m;
+  }
+
+  /* Write-your-own-motion editor. Server clips to 300 chars (lib/room-logic.js
+     MAX_MOTION), so keep the client in step. `current` supplies the text to
+     prefill; `onSave` receives the cleaned motion. */
+  var MAX_MOTION = 300;
+
+  function setupMotionEditor(cfg) {
+    var panel = $(cfg.panel), input = $(cfg.input), count = $(cfg.count);
+
+    function refresh() { count.textContent = input.value.length + "/" + MAX_MOTION; }
+    function close() { panel.hidden = true; }
+    function open() {
+      input.value = cfg.current() || "";
+      panel.hidden = false;
+      refresh();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+    function commit() {
+      var m = input.value.replace(/\s+/g, " ").trim().slice(0, MAX_MOTION);
+      if (!m) { input.focus(); return; }
+      cfg.onSave(m);
+      close();
+    }
+
+    $(cfg.openBtn).addEventListener("click", function () {
+      if (panel.hidden) open(); else close();
+    });
+    $(cfg.save).addEventListener("click", commit);
+    $(cfg.cancel).addEventListener("click", close);
+    input.addEventListener("input", refresh);
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); }
+    });
+
+    return { close: close };
   }
   function clampScore(n) {
     n = Number(n);
@@ -1013,9 +1170,17 @@
   state.motion = pickMotion();
   renderMotion();
 
+  var hotSeatEditor = setupMotionEditor({
+    openBtn: "writeTopic", panel: "motionEdit", input: "motionInput",
+    count: "motionCount", save: "motionSave", cancel: "motionCancel",
+    current: function () { return state.motion; },
+    onSave: function (m) { state.motion = m; renderMotion(); },
+  });
+
   $("rerollTopic").addEventListener("click", function () {
     state.motion = pickMotion(state.motion);
     renderMotion();
+    hotSeatEditor.close();
   });
 
   Array.prototype.forEach.call($("lengthSeg").children, function (b) {
@@ -1509,6 +1674,8 @@
       b.disabled = !online.isHost;
     });
     $("lobbyReroll").hidden = !online.isHost;
+    $("lobbyWrite").hidden = !online.isHost;
+    if (!online.isHost && lobbyEditor) lobbyEditor.close();
 
     var bothIn = v.seats.for.filled && v.seats.against.filled;
     $("lobbyStartBtn").hidden = !online.isHost;
@@ -1528,8 +1695,19 @@
     oAction("start", {}).catch(function (e) { toast(e.message || "Couldn't start."); });
   });
   $("lobbyLeaveBtn").addEventListener("click", oLeave);
+  var lobbyEditor = setupMotionEditor({
+    openBtn: "lobbyWrite", panel: "lobbyMotionEdit", input: "lobbyMotionInput",
+    count: "lobbyMotionCount", save: "lobbyMotionSave", cancel: "lobbyMotionCancel",
+    current: function () { return (online.view && online.view.config.motion) || ""; },
+    onSave: function (m) {
+      oAction("config", { motion: m })
+        .catch(function (e) { toast(e.message || "Couldn't set the motion."); });
+    },
+  });
+
   $("lobbyReroll").addEventListener("click", function () {
     oAction("config", { motion: pickMotion(online.view && online.view.config.motion) }).catch(function () {});
+    lobbyEditor.close();
   });
   Array.prototype.forEach.call($("lobbyLengthSeg").children, function (b) {
     b.addEventListener("click", function () {
