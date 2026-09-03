@@ -222,11 +222,38 @@ export default async function handler(req, res) {
       side: t && t.side === "against" ? "against" : "for",
       name: clip(t && t.name, 40) || "Speaker",
       passed: !!(t && t.passed),
+      conceded: !!(t && t.conceded),
       text: clip(t && t.text, 1500),
     }))
-    .filter((t) => t.passed || t.text);
+    .filter((t) => t.passed || t.conceded || t.text);
 
   if (!motion) return res.status(400).json({ error: "No motion supplied." });
+
+  const concession = transcript.find((t) => t.conceded);
+  if (concession) {
+    const winner = concession.side === "for" ? "against" : "for";
+    const winnerName = winner === "for" ? nameFor : nameAgainst;
+    const loserName = concession.side === "for" ? nameFor : nameAgainst;
+    return res.status(200).json({
+      verdict: {
+        winner,
+        headline: `${winnerName} wins by concession.`,
+        rationale: `${loserName} conceded the debate, resulting in an automatic loss and awarding victory to ${winnerName}.`,
+        for: {
+          score: winner === "for" ? 10 : 0,
+          strengths: winner === "for" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+          weaknesses: winner === "for" ? [] : [{ point: "Conceded the debate", example: "" }],
+          advice: winner === "for" ? "Victory awarded by opponent concession." : "Conceded the debate."
+        },
+        against: {
+          score: winner === "against" ? 10 : 0,
+          strengths: winner === "against" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+          weaknesses: winner === "against" ? [] : [{ point: "Conceded the debate", example: "" }],
+          advice: winner === "against" ? "Victory awarded by opponent concession." : "Conceded the debate."
+        }
+      }
+    });
+  }
   if (!transcript.some((t) => !t.passed && t.text)) {
     return res.status(200).json({
       verdict: normalizeVerdict({

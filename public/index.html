@@ -1149,6 +1149,11 @@
       };
     }
     var w = (d.winner === "for" || d.winner === "against" || d.winner === "draw") ? d.winner : "draw";
+    var list = (online.view && online.view.transcript) || state.transcript || [];
+    var concession = list.find(function (t) { return t && t.conceded; });
+    if (concession) {
+      w = concession.side === "for" ? "against" : "for";
+    }
     return {
       winner: w,
       headline: typeof d.headline === "string" ? d.headline : "The house is split.",
@@ -1281,6 +1286,7 @@
     var banner = $("verdictBanner");
     banner.className = "verdict-banner " + (v.winner === "draw" ? "" : v.winner);
     if (v.winner === "draw") $("winnerName").textContent = "A dead heat";
+    else if (v.headline && v.headline.toLowerCase().indexOf("concession") !== -1) $("winnerName").textContent = (v.winner === "for" ? nF : nA) + " wins by concession";
     else $("winnerName").textContent = (v.winner === "for" ? nF : nA) + " carries it";
     $("verdictHeadline").textContent = v.headline;
     $("verdictRationale").textContent = v.rationale;
@@ -1540,18 +1546,45 @@
       return;
     }
     if (!state.running) return;
+    var side = state.active;
+    var winner = other(side);
+    var winnerName = names(winner);
+    var loserName = names(side);
+
     commitTime();
     state.transcript.push({
-      side: state.active,
-      name: names(state.active),
+      side: side,
+      name: loserName,
       text: "",
       passed: true,
       conceded: true,
       durationMs: state.lastDurationMs || 0
     });
-    state.concededBy = state.active;
+    state.concededBy = side;
+    state.endedReason = "concession";
+    clearPrep();
+    $("prepBar").hidden = true;
+    $("endRequestOverlay").hidden = true;
     renderTranscript();
-    endDebate("concession");
+
+    show("verdict");
+    renderVerdict({
+      winner: winner,
+      headline: winnerName + " wins by concession.",
+      rationale: loserName + " conceded the debate, resulting in an automatic loss and awarding victory to " + winnerName + ".",
+      "for": {
+        score: winner === "for" ? 10 : 0,
+        strengths: winner === "for" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+        weaknesses: winner === "for" ? [] : [{ point: "Conceded the debate", example: "" }],
+        advice: winner === "for" ? "Victory awarded by opponent concession." : "Conceded the debate."
+      },
+      "against": {
+        score: winner === "against" ? 10 : 0,
+        strengths: winner === "against" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+        weaknesses: winner === "against" ? [] : [{ point: "Conceded the debate", example: "" }],
+        advice: winner === "against" ? "Victory awarded by opponent concession." : "Conceded the debate."
+      }
+    }, null, state.nameFor, state.nameAgainst);
   }
   $("concedeTurn").addEventListener("click", concedeDebate);
 
@@ -1667,8 +1700,32 @@
       "Time expired for " + names(state.active) + ". Re-reading the record, weighing each clash…";
 
     var spoke = state.transcript.some(function (t) { return !t.passed && t.text; });
-    var hadConcession = state.transcript.some(function (t) { return !!t.conceded; });
-    if (!spoke && !hadConcession) {
+    var concession = state.transcript.find(function (t) { return t.conceded; });
+    if (concession || reason === "concession") {
+      var loser = (concession && concession.side) || state.concededBy || state.active;
+      var winner = other(loser);
+      var winnerName = names(winner);
+      var loserName = names(loser);
+      renderVerdict({
+        winner: winner,
+        headline: winnerName + " wins by concession.",
+        rationale: loserName + " conceded the debate, resulting in an automatic loss and awarding victory to " + winnerName + ".",
+        "for": {
+          score: winner === "for" ? 10 : 0,
+          strengths: winner === "for" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+          weaknesses: winner === "for" ? [] : [{ point: "Conceded the debate", example: "" }],
+          advice: winner === "for" ? "Victory awarded by opponent concession." : "Conceded the debate."
+        },
+        against: {
+          score: winner === "against" ? 10 : 0,
+          strengths: winner === "against" ? [{ point: "Held the floor until opponent conceded", example: "" }] : [],
+          weaknesses: winner === "against" ? [] : [{ point: "Conceded the debate", example: "" }],
+          advice: winner === "against" ? "Victory awarded by opponent concession." : "Conceded the debate."
+        }
+      }, null, state.nameFor, state.nameAgainst);
+      return;
+    }
+    if (!spoke) {
       renderVerdict({
         winner: "draw",
         headline: "No debate took place.",
