@@ -305,6 +305,80 @@ export default function App() {
     }
   }, [isOnlineMode, roomCode, roomSync, nameFor, nameAgainst, initialSeconds, transitionToPhase]);
 
+  const handleSubmitJudgement = useCallback((judgementVerdict) => {
+    setVerdict(judgementVerdict);
+    transitionToPhase('verdict');
+    try {
+      playGavel();
+    } catch {}
+    roomSync.broadcastVerdict?.(judgementVerdict);
+  }, [transitionToPhase, roomSync]);
+
+  // Automated AI Adjudication Deliberation
+  const handleTriggerAdjudication = useCallback(async () => {
+    if (gameMode === 'crowd_jury') {
+      transitionToPhase('scoring');
+      return;
+    }
+
+    transitionToPhase('deliberating');
+    setIsAdjudicating(true);
+
+    try {
+      const activeTurns = roomSync.roomState?.transcript || [];
+
+      // Guard: if nobody actually typed anything, skip the AI entirely.
+      // Sending an empty transcript causes the model to hallucinate speeches.
+      const hasRealContent = activeTurns.some(t => t.text && t.text.trim().length > 0);
+      if (!hasRealContent) {
+        await new Promise(resolve => setTimeout(resolve, 1800)); // brief deliberation delay
+        handleSubmitJudgement({
+          winner: 'draw',
+          headline: 'No speeches were delivered.',
+          rationale: null,
+          scores: null,
+          for: { score: null, strengths: [], weaknesses: [] },
+          against: { score: null, strengths: [], weaknesses: [] },
+          individualScores: []
+        });
+        return;
+      }
+
+      const fetchPromise = fetch('/api/adjudicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          motion: motionText,
+          nameFor,
+          nameAgainst,
+          transcript: activeTurns
+        })
+      });
+
+      const minDelayPromise = new Promise(resolve => setTimeout(resolve, 2600));
+      const [res] = await Promise.all([fetchPromise, minDelayPromise]);
+
+      if (!res.ok) {
+        throw new Error(`Adjudication service returned status ${res.status}`);
+      }
+
+      const aiVerdict = await res.json();
+      handleSubmitJudgement(aiVerdict);
+    } catch (err) {
+      console.warn('Falling back to local adjudication synthesis:', err);
+      const activeTurns = roomSync.roomState?.transcript || [];
+      const fallback = generateFallbackVerdict({
+        motion: motionText,
+        nameFor,
+        nameAgainst,
+        transcript: activeTurns
+      });
+      handleSubmitJudgement(fallback);
+    } finally {
+      setIsAdjudicating(false);
+    }
+  }, [gameMode, roomSync.roomState?.transcript, motionText, nameFor, nameAgainst, transitionToPhase, handleSubmitJudgement]);
+
   // Sync remote phase changes — ONLY in active online rooms.
   useEffect(() => {
     if (!isOnlineMode || !roomCode || phase === 'lobby') return;
@@ -428,80 +502,6 @@ export default function App() {
 
       transitionToPhase('room_lobby');
     }
-  };
-
-  // Automated AI Adjudication Deliberation
-  const handleTriggerAdjudication = useCallback(async () => {
-    if (gameMode === 'crowd_jury') {
-      transitionToPhase('scoring');
-      return;
-    }
-
-    transitionToPhase('deliberating');
-    setIsAdjudicating(true);
-
-    try {
-      const activeTurns = roomSync.roomState.transcript || [];
-
-      // Guard: if nobody actually typed anything, skip the AI entirely.
-      // Sending an empty transcript causes the model to hallucinate speeches.
-      const hasRealContent = activeTurns.some(t => t.text && t.text.trim().length > 0);
-      if (!hasRealContent) {
-        await new Promise(resolve => setTimeout(resolve, 1800)); // brief deliberation delay
-        handleSubmitJudgement({
-          winner: 'draw',
-          headline: 'No speeches were delivered.',
-          rationale: null,
-          scores: null,
-          for: { score: null, strengths: [], weaknesses: [] },
-          against: { score: null, strengths: [], weaknesses: [] },
-          individualScores: []
-        });
-        return;
-      }
-
-      const fetchPromise = fetch('/api/adjudicate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          motion: motionText,
-          nameFor,
-          nameAgainst,
-          transcript: activeTurns
-        })
-      });
-
-      const minDelayPromise = new Promise(resolve => setTimeout(resolve, 2600));
-      const [res] = await Promise.all([fetchPromise, minDelayPromise]);
-
-      if (!res.ok) {
-        throw new Error(`Adjudication service returned status ${res.status}`);
-      }
-
-      const aiVerdict = await res.json();
-      handleSubmitJudgement(aiVerdict);
-    } catch (err) {
-      console.warn('Falling back to local adjudication synthesis:', err);
-      const activeTurns = roomSync.roomState.transcript || [];
-      const fallback = generateFallbackVerdict({
-        motion: motionText,
-        nameFor,
-        nameAgainst,
-        transcript: activeTurns
-      });
-      handleSubmitJudgement(fallback);
-    } finally {
-      setIsAdjudicating(false);
-    }
-  }, [gameMode, roomSync.roomState.transcript, motionText, nameFor, nameAgainst, transitionToPhase]);
-
-  const handleSubmitJudgement = (judgementVerdict) => {
-    setVerdict(judgementVerdict);
-    transitionToPhase('verdict');
-    try {
-      playGavel();
-    } catch {}
-    roomSync.broadcastVerdict?.(judgementVerdict);
   };
 
   return (
