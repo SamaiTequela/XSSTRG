@@ -419,6 +419,24 @@ export default function VerdictStage({
                 ))}
               </div>
             </div>
+
+            {/* Advice */}
+            {verdict?.for?.advice && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--for-bg)',
+                  border: '1px solid var(--for-line)',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.45,
+                  color: 'var(--ink)'
+                }}
+              >
+                <strong style={{ color: 'var(--for)', marginRight: '6px' }}>Advice ·</strong>
+                {verdict.for.advice}
+              </div>
+            )}
           </div>}
 
           {/* Opposition Assessment Card */}
@@ -525,6 +543,24 @@ export default function VerdictStage({
                 ))}
               </div>
             </div>
+
+            {/* Advice */}
+            {verdict?.against?.advice && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--against-bg)',
+                  border: '1px solid var(--against-line)',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.45,
+                  color: 'var(--ink)'
+                }}
+              >
+                <strong style={{ color: 'var(--against)', marginRight: '6px' }}>Advice ·</strong>
+                {verdict.against.advice}
+              </div>
+            )}
           </div>}
         </div>
       </div>)}

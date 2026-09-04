@@ -46,27 +46,16 @@ function generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript = []
     scores: { for: scoreFor, against: scoreAgainst },
     for: {
       score: scoreFor,
-      strengths: [
-        { point: 'Structured affirmative case points', citationQuote: forRemarks[0]?.text?.slice(0, 80) || 'Opening address', turnNo: 1 }
-      ],
-      weaknesses: [
-        { point: 'Could extend comparative impact weighing', citationQuote: forRemarks[forRemarks.length - 1]?.text?.slice(0, 80) || 'Closing remarks', turnNo: forRemarks.length || 1 }
-      ]
+      strengths: ['Structured affirmative constructive arguments', 'Direct engagement with opposing claims'],
+      weaknesses: ['Could extend long-term comparative impact weighing'],
+      advice: 'Open with your strongest empirical proof early in constructive speeches.'
     },
     against: {
       score: scoreAgainst,
-      strengths: [
-        { point: 'Targeted rebuttal of proposition claims', citationQuote: againstRemarks[0]?.text?.slice(0, 80) || 'First rebuttal', turnNo: 2 }
-      ],
-      weaknesses: [
-        { point: 'Deepen empirical backing for counterarguments', citationQuote: againstRemarks[againstRemarks.length - 1]?.text?.slice(0, 80) || 'Floor defense', turnNo: againstRemarks.length || 2 }
-      ]
-    },
-    individualScores: [
-      { judgeLabel: 'Judge 1', scoreFor, scoreAgainst, remarks: 'Strong argumentation across both benches.' },
-      { judgeLabel: 'Judge 2', scoreFor: scoreFor - 1, scoreAgainst: scoreAgainst + (winner === 'draw' ? 0 : 1), remarks: 'Rhetorically persuasive exchanges.' },
-      { judgeLabel: 'Judge 3', scoreFor: scoreFor + (winner === 'for' ? 1 : 0), scoreAgainst: scoreAgainst - (winner === 'against' ? 1 : 0), remarks: 'Decision turned on direct clash resolution.' }
-    ]
+      strengths: ['Targeted rebuttal of proposition claims', 'Pushed on practical feasibility'],
+      weaknesses: ['Could deepen empirical backing for counterarguments'],
+      advice: 'Signpost counter-points directly against affirmative impacts.'
+    }
   };
 }
 
@@ -363,7 +352,7 @@ export default function App() {
       }
 
       const aiVerdict = await res.json();
-      handleSubmitJudgement(aiVerdict);
+      handleSubmitJudgement(aiVerdict?.verdict || aiVerdict);
     } catch (err) {
       console.warn('Falling back to local adjudication synthesis:', err);
       const activeTurns = roomSync.roomState?.transcript || [];
