@@ -124,19 +124,19 @@ export default function SpeakingDispatch({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '3px 10px',
+                padding: '3px 8px',
                 borderRadius: 'var(--radius-pill)',
-                fontSize: '0.74rem',
+                fontSize: '0.72rem',
                 fontFamily: 'Space Mono, monospace',
                 letterSpacing: '0.06em',
                 fontWeight: 700,
-                background: 'var(--brass-subtle)',
-                color: 'var(--brass)',
-                border: '1px solid var(--brass-line)'
+                background: isJudge ? 'var(--brass-subtle)' : 'var(--chamber)',
+                color: isJudge ? 'var(--brass)' : 'var(--ink-secondary)',
+                border: `1px solid ${isJudge ? 'var(--brass-line)' : 'var(--line)'}`
               }}
             >
-              <Gavel size={13} />
-              JUDGE MONITOR
+              {isJudge ? <Gavel size={13} /> : <Radio size={13} />}
+              {isJudge ? 'JUDGE MONITOR' : 'CHAMBER OBSERVATION'}
             </span>
             <strong
               style={{
@@ -150,8 +150,8 @@ export default function SpeakingDispatch({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Live Typing Status Badge */}
-            {judgeLiveDraft.isTyping ? (
+            {/* Typing Status Badge */}
+            {(isJudge ? judgeLiveDraft.isTyping : opponentTyping.isTyping) ? (
               <span
                 style={{
                   display: 'inline-flex',
@@ -175,7 +175,7 @@ export default function SpeakingDispatch({
                     boxShadow: '0 0 8px var(--for)'
                   }}
                 />
-                LIVE DRAFTING ({judgeLiveDraft.wordCount} words)
+                DRAFTING ({(isJudge ? judgeLiveDraft.wordCount : opponentTyping.wordCount) || 0} words)
               </span>
             ) : (
               <span
@@ -185,90 +185,124 @@ export default function SpeakingDispatch({
                   color: 'var(--ink-muted)'
                 }}
               >
-                Draft idle ({judgeLiveDraft.wordCount || 0} words)
+                Draft idle ({(isJudge ? judgeLiveDraft.wordCount : opponentTyping.wordCount) || 0} words)
               </span>
             )}
 
-            {/* Toggle Watch Live Draft */}
-            <button
-              type="button"
-              onClick={() => setIsLiveDraftVisible(!isLiveDraftVisible)}
-              id="toggle-judge-live-draft-btn"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                background: isLiveDraftVisible ? 'var(--brass-subtle)' : 'transparent',
-                color: isLiveDraftVisible ? 'var(--brass)' : 'var(--ink-muted)',
-                border: '1px solid var(--line)'
-              }}
-            >
-              {isLiveDraftVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-              {isLiveDraftVisible ? '👁️ Live Draft Active' : 'Hidden'}
-            </button>
+            {/* Toggle Watch Live Draft: ONLY FOR JUDGES */}
+            {isJudge && (
+              <button
+                type="button"
+                onClick={() => setIsLiveDraftVisible(!isLiveDraftVisible)}
+                id="toggle-judge-live-draft-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: isLiveDraftVisible ? 'var(--brass-subtle)' : 'transparent',
+                  color: isLiveDraftVisible ? 'var(--brass)' : 'var(--ink-muted)',
+                  border: '1px solid var(--line)'
+                }}
+              >
+                {isLiveDraftVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                {isLiveDraftVisible ? '👁️ Live Draft Active' : 'Hidden'}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Live Keystroke Stream Screen */}
-        <AnimatePresence>
-          {isLiveDraftVisible && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              style={{
-                background: 'var(--chamber)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--brass-line)',
-                padding: '14px 18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span
-                  className="eyebrow"
-                  style={{
-                    color: 'var(--brass)',
-                    fontSize: '0.72rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
-                >
-                  <Radio size={12} />
-                  JUDICIAL DRAFT FEED • PRIVILEGED KEAPSTREAM
-                </span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--ink-muted)' }}>
-                  Opponent view is blinded
-                </span>
-              </div>
-
-              <div
+        {/* Live Keystroke Stream: ONLY FOR VERIFIED JUDGES */}
+        {isJudge ? (
+          <AnimatePresence>
+            {isLiveDraftVisible && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
                 style={{
-                  fontFamily: 'Newsreader, Georgia, serif',
-                  fontSize: '1.08rem',
-                  lineHeight: '1.6',
-                  color: judgeLiveDraft.text ? 'var(--ink)' : 'var(--ink-muted)',
-                  minHeight: '110px',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  fontStyle: judgeLiveDraft.text ? 'normal' : 'italic'
+                  background: 'var(--chamber)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--brass-line)',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}
               >
-                {judgeLiveDraft.text ||
-                  "Waiting for speaker to type... Keystrokes stream live to this judicial monitor in real-time prior to formal floor submission."}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span
+                    className="eyebrow"
+                    style={{
+                      color: 'var(--brass)',
+                      fontSize: '0.72rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <Radio size={12} />
+                    JUDICIAL DRAFT FEED • PRIVILEGED KEYSTREAM
+                  </span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-muted)' }}>
+                    Opponents are blinded
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    fontFamily: 'Newsreader, Georgia, serif',
+                    fontSize: '1.08rem',
+                    lineHeight: '1.6',
+                    color: judgeLiveDraft.text ? 'var(--ink)' : 'var(--ink-muted)',
+                    minHeight: '110px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    fontStyle: judgeLiveDraft.text ? 'normal' : 'italic'
+                  }}
+                >
+                  {judgeLiveDraft.text ||
+                    "Waiting for speaker to type... Keystrokes stream live to this judicial monitor in real-time prior to formal floor submission."}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        ) : (
+          /* Blinded Opponent Waiting Screen */
+          <div
+            style={{
+              background: 'var(--chamber)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--line)',
+              padding: '24px 20px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px'
+            }}
+          >
+            <div style={{ fontSize: '0.74rem', fontFamily: 'Space Mono, monospace', color: 'var(--ink-muted)', letterSpacing: '0.1em' }}>
+              BLINDED DEBATER VIEW
+            </div>
+            <div style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: '1.1rem', color: 'var(--ink)' }}>
+              {opponentTyping.isTyping ? (
+                <span><strong>{currentSpeaker}</strong> is formulating their argument in real-time...</span>
+              ) : (
+                <span>Waiting for <strong>{currentSpeaker}</strong> to submit their address to the house...</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
+              Their speech will appear in the Chamber Record once dispatched.
+            </div>
+          </div>
+        )}
 
         {/* Judge Private Deliberation Scratchpad */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>

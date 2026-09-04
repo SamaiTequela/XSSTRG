@@ -1,24 +1,119 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Generates a unique client ID per tab session
-const CLIENT_ID = 'client_' + Math.random().toString(36).substring(2, 9);
+// Generates and persists a unique client ID per browser session
+export function getSessionClientId() {
+  if (typeof window === 'undefined') return 'client_' + Math.random().toString(36).substring(2, 9);
+  try {
+    let id = sessionStorage.getItem('poo_client_id');
+    if (!id) {
+      id = 'client_' + Math.random().toString(36).substring(2, 9);
+      sessionStorage.setItem('poo_client_id', id);
+    }
+    return id;
+  } catch {
+    return 'client_' + Math.random().toString(36).substring(2, 9);
+  }
+}
+
+export const CLIENT_ID = getSessionClientId();
+
+// API Helpers for /api/room
+export async function createOnlineRoom({ code, name, motion, perSecs, judgeMode, role }) {
+  const res = await fetch('/api/room', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'create',
+      code,
+      name: (name || 'Speaker').trim(),
+      motion,
+      perSecs: Number(perSecs) || 600,
+      judgeMode: !!judgeMode,
+      role: role || 'for',
+      clientId: CLIENT_ID
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Failed to create chamber (${res.status})`);
+  }
+  return data.view;
+}
+
+export async function joinOnlineRoom({ code, name, role, seat }) {
+  const res = await fetch('/api/room', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'join',
+      code: (code || '').toUpperCase().trim(),
+      name: (name || 'Speaker').trim(),
+      role: role === 'spectator' ? 'spectator' : 'player',
+      seat: seat || null,
+      clientId: CLIENT_ID
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Failed to join chamber (${res.status})`);
+  }
+  return data.view;
+}
+
+export async function fetchRoomView(code) {
+  if (!code) return null;
+  const res = await fetch(`/api/room?code=${encodeURIComponent(code)}&clientId=${encodeURIComponent(CLIENT_ID)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Room not found`);
+  }
+  return data.view;
+}
+
+export async function sendRoomAction(action, code, body = {}) {
+  if (!code) return null;
+  const res = await fetch('/api/room', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      code: (code || '').toUpperCase().trim(),
+      clientId: CLIENT_ID,
+      ...body
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Action '${action}' failed`);
+  }
+  return data.view;
+}
+
+export function generateInviteLink(code) {
+  if (typeof window === 'undefined') return `?room=${code}`;
+  return `${window.location.origin}/?room=${encodeURIComponent(code)}`;
+}
 
 export function useRoomSync({
   roomId = 'HY7X',
   userProfile = { name: 'Alex', role: 'for' },
   initialTurns = [],
+  isOnline = false,
   wsUrl = null
 }) {
   const [participants, setParticipants] = useState([]);
+  const [serverView, setServerView] = useState(null);
   const [roomState, setRoomState] = useState({
     phase: 'debate',
     activeSpeaker: 'for',
     turnNo: 1,
-    remainingFor: 300,
-    remainingAgainst: 300,
+    remainingFor: 600,
+    remainingAgainst: 600,
     prepSeconds: 0,
     transcript: initialTurns || [],
-    verdict: null
+    verdict: null,
+    endRequest: null,
+    concededBy: null
   });
 
   // Typing status states
@@ -29,9 +124,9 @@ export function useRoomSync({
 
   const generalChannelRef = useRef(null);
   const judgeChannelRef = useRef(null);
-  const wsRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const lastDraftTextRef = useRef('');
+  const pollTimerRef = useRef(null);
 
   // Keep an authoritative reference to the latest roomState for event listeners
   const roomStateRef = useRef(roomState);
@@ -39,26 +134,23 @@ export function useRoomSync({
     roomStateRef.current = roomState;
   }, [roomState]);
 
-  const isJudge = userProfile.role === 'judge';
+  const isJudge = userProfile.role === 'judge' || userProfile.role === 'spectator';
 
-  // 1. Initialize Transport Channels (BroadcastChannel + WebSocket dual layer)
+  // 1. Initialize Transport Channels (BroadcastChannel for local tabs)
   useEffect(() => {
+    if (!roomId) return;
     const generalChannelName = `point-of-order-room-${roomId}`;
     const judgeChannelName = `point-of-order-judge-${roomId}`;
 
-    // A. General BroadcastChannel (State, Turns, Blinded Typing Indicator)
     const generalChannel = new BroadcastChannel(generalChannelName);
     generalChannelRef.current = generalChannel;
 
-    // B. Judge BroadcastChannel (Live Keystroke Draft Stream)
-    // Both active speakers (to send) and judges (to receive) need a handle
     const judgeChannel = new BroadcastChannel(judgeChannelName);
     judgeChannelRef.current = judgeChannel;
 
-    // Handle messages on the general channel
     generalChannel.onmessage = (event) => {
       const { type, payload, senderId } = event.data || {};
-      if (senderId === CLIENT_ID) return; // Discard own messages
+      if (senderId === CLIENT_ID) return;
 
       switch (type) {
         case 'JOIN_ROOM':
@@ -67,22 +159,10 @@ export function useRoomSync({
             if (exists) return prev;
             return [...prev, payload];
           });
-          // Reply with presence
           generalChannel.postMessage({
             type: 'PRESENCE_ANNOUNCE',
             payload: { clientId: CLIENT_ID, name: userProfile.name, role: userProfile.role },
             senderId: CLIENT_ID
-          });
-          // Also broadcast current room state if we have turns
-          setRoomState((current) => {
-            if (current.transcript.length > 0) {
-              generalChannel.postMessage({
-                type: 'SYNC_STATE',
-                payload: current,
-                senderId: CLIENT_ID
-              });
-            }
-            return current;
           });
           break;
 
@@ -96,7 +176,6 @@ export function useRoomSync({
 
         case 'SYNC_STATE':
           setRoomState((prev) => {
-            // Adopt whichever state has more recent turns or higher turn number
             if ((payload.transcript?.length || 0) >= prev.transcript.length) {
               return { ...prev, ...payload };
             }
@@ -110,19 +189,15 @@ export function useRoomSync({
             transcript: [...prev.transcript, payload.turn],
             activeSpeaker: payload.nextSpeaker,
             turnNo: payload.turnNo,
-            prepSeconds: payload.prepSeconds ?? 15,
+            prepSeconds: payload.prepSeconds ?? 0,
             remainingFor: payload.remainingFor ?? prev.remainingFor,
             remainingAgainst: payload.remainingAgainst ?? prev.remainingAgainst
           }));
-          // Reset typing indicators
           setOpponentTyping({ isTyping: false, wordCount: 0, speaker: '' });
           setJudgeLiveDraft({ isTyping: false, text: '', wordCount: 0, speaker: '' });
           break;
 
         case 'OPPONENT_TYPING_UPDATE':
-          // SECURITY GUARANTEE:
-          // The general channel payload contains strictly { isTyping, wordCount, speaker }
-          // Raw text is strictly forbidden here
           setOpponentTyping({
             isTyping: !!payload.isTyping,
             wordCount: payload.wordCount || 0,
@@ -131,15 +206,11 @@ export function useRoomSync({
           break;
 
         case 'SKIP_PREP':
-          // SERVER/HOOK GUARD:
-          // Ignore any SKIP_PREP socket/broadcast events that do not originate from the authorized active speaker!
           if (payload?.speakerRole && payload.speakerRole === roomStateRef.current.activeSpeaker) {
             setRoomState((prev) => ({
               ...prev,
               prepSeconds: 0
             }));
-          } else {
-            console.warn(`[SECURITY GUARD] Ignored unauthorized SKIP_PREP broadcast from '${payload?.speakerRole}'. Current authorized speaker is '${roomStateRef.current.activeSpeaker}'.`);
           }
           break;
 
@@ -164,9 +235,6 @@ export function useRoomSync({
       }
     };
 
-    // SECURITY ENFORCEMENT:
-    // Only subscribe to the judge channel if this client is VERIFIED as a judge.
-    // Opponent clients (role !== 'judge') NEVER register a listener for draft text payloads.
     if (isJudge) {
       judgeChannel.onmessage = (event) => {
         const { type, payload, senderId } = event.data || {};
@@ -185,30 +253,6 @@ export function useRoomSync({
       judgeChannel.onmessage = null;
     }
 
-    // C. Optional WebSocket Connection (Layer 2 Fallback)
-    const targetWsUrl = wsUrl || (typeof window !== 'undefined' && window.__WS_URL__);
-    if (targetWsUrl) {
-      try {
-        const ws = new WebSocket(targetWsUrl);
-        wsRef.current = ws;
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            // Route message into generalChannel listener
-            if (generalChannel.onmessage) {
-              generalChannel.onmessage({ data });
-            }
-          } catch (e) {
-            console.warn('WS message parse error:', e);
-          }
-        };
-      } catch (err) {
-        console.warn('WebSocket connection not active, using BroadcastChannel:', err);
-      }
-    }
-
-    // Announce join to peer tabs
     generalChannel.postMessage({
       type: 'JOIN_ROOM',
       payload: { clientId: CLIENT_ID, name: userProfile.name, role: userProfile.role },
@@ -218,119 +262,148 @@ export function useRoomSync({
     return () => {
       generalChannel.close();
       judgeChannel.close();
-      if (wsRef.current) {
-        try { wsRef.current.close(); } catch {}
-      }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
     };
-  }, [roomId, userProfile.name, userProfile.role, isJudge, wsUrl]);
+  }, [roomId, userProfile.name, userProfile.role, isJudge]);
 
-  // Helper to send message over both BroadcastChannel and WebSocket if open
-  const dispatchMessage = useCallback((channel, msg) => {
-    channel?.postMessage(msg);
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(msg));
-      } catch {}
-    }
+  // 2. HTTP Polling Loop for Online Chambers
+  const syncServerView = useCallback((v) => {
+    if (!v) return;
+    setServerView(v);
+
+    setRoomState((prev) => {
+      const remainingFor = Math.round((v.clock?.remaining?.for || 0) / 1000);
+      const remainingAgainst = Math.round((v.clock?.remaining?.against || 0) / 1000);
+      const prepSeconds = v.clock?.prepUntil
+        ? Math.max(0, Math.round((v.clock.prepUntil - (v.serverNow || Date.now())) / 1000))
+        : 0;
+
+      return {
+        ...prev,
+        phase: v.phase,
+        activeSpeaker: v.clock?.active || prev.activeSpeaker,
+        turnNo: v.turnNo || prev.turnNo,
+        remainingFor: remainingFor > 0 ? remainingFor : prev.remainingFor,
+        remainingAgainst: remainingAgainst > 0 ? remainingAgainst : prev.remainingAgainst,
+        prepSeconds,
+        transcript: v.transcript || prev.transcript,
+        verdict: v.verdict || prev.verdict,
+        endRequest: v.endRequest || null,
+        concededBy: v.concededBy || null
+      };
+    });
   }, []);
 
-  // 2. Debounced Typing Broadcaster with Security Partitioning
+  useEffect(() => {
+    if (!isOnline || !roomId) return;
+
+    let active = true;
+
+    const poll = async () => {
+      try {
+        const view = await fetchRoomView(roomId);
+        if (active && view) {
+          syncServerView(view);
+        }
+      } catch (err) {
+        // Silently tolerate transient polling error
+      } finally {
+        if (active) {
+          pollTimerRef.current = setTimeout(poll, 1500);
+        }
+      }
+    };
+
+    poll();
+
+    return () => {
+      active = false;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [isOnline, roomId, syncServerView]);
+
+  // Helper to send message over BroadcastChannel
+  const dispatchMessage = useCallback((channel, msg) => {
+    channel?.postMessage(msg);
+  }, []);
+
+  // 3. Debounced Typing Broadcaster with Security Partitioning
   const broadcastTyping = useCallback((text) => {
     lastDraftTextRef.current = text;
     const words = text.trim().split(/\s+/).filter(Boolean);
     const wordCount = text.trim() === '' ? 0 : words.length;
     const isTyping = text.trim().length > 0;
 
-    // Send immediately to general channel (strictly sanitized metadata)
     dispatchMessage(generalChannelRef.current, {
       type: 'OPPONENT_TYPING_UPDATE',
       payload: {
         isTyping,
         wordCount,
-        speaker: userProfile.role === 'for' ? 'Alex' : 'Sam'
+        speaker: userProfile.role
       },
       senderId: CLIENT_ID
     });
 
-    // Send full raw text payload STRICTLY to Judge channel
-    dispatchMessage(judgeChannelRef.current, {
-      type: 'JUDGE_DRAFT_STREAM',
-      payload: {
-        isTyping,
-        text,
-        wordCount,
-        speaker: userProfile.role === 'for' ? 'Alex' : 'Sam'
-      },
-      senderId: CLIENT_ID
-    });
-
-    // Reset inactivity timer: if user stops typing for 2.8 seconds, mark as not typing
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    if (isTyping) {
-      typingTimeoutRef.current = setTimeout(() => {
-        dispatchMessage(generalChannelRef.current, {
-          type: 'OPPONENT_TYPING_UPDATE',
-          payload: {
-            isTyping: false,
-            wordCount,
-            speaker: userProfile.role === 'for' ? 'Alex' : 'Sam'
-          },
-          senderId: CLIENT_ID
-        });
+    typingTimeoutRef.current = setTimeout(() => {
+      dispatchMessage(judgeChannelRef.current, {
+        type: 'JUDGE_DRAFT_STREAM',
+        payload: {
+          isTyping,
+          text,
+          wordCount,
+          speaker: userProfile.role
+        },
+        senderId: CLIENT_ID
+      });
+    }, 150);
+  }, [dispatchMessage, userProfile.role]);
 
-        dispatchMessage(judgeChannelRef.current, {
-          type: 'JUDGE_DRAFT_STREAM',
-          payload: {
-            isTyping: false,
-            text: lastDraftTextRef.current,
-            wordCount,
-            speaker: userProfile.role === 'for' ? 'Alex' : 'Sam'
-          },
-          senderId: CLIENT_ID
-        });
-      }, 2800);
-    }
-  }, [userProfile.role, dispatchMessage]);
-
-  // 3. Submit Turn across all tabs
-  const broadcastTurn = useCallback((turn, nextSpeaker, nextTurnNo, clocks = {}) => {
+  // 4. Submit Turn across all tabs & online API
+  const broadcastTurn = useCallback(async (turn, nextSpeaker, nextTurnNo, clocks = {}) => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Broadcast turn to general channel
     dispatchMessage(generalChannelRef.current, {
       type: 'TURN_SUBMITTED',
       payload: {
         turn,
         nextSpeaker,
         turnNo: nextTurnNo,
-        prepSeconds: 15,
+        prepSeconds: 0,
         remainingFor: clocks.remainingFor,
         remainingAgainst: clocks.remainingAgainst
       },
       senderId: CLIENT_ID
     });
 
-    // Clear judge draft
     dispatchMessage(judgeChannelRef.current, {
       type: 'JUDGE_DRAFT_STREAM',
       payload: { isTyping: false, text: '', wordCount: 0, speaker: '' },
       senderId: CLIENT_ID
     });
-  }, [dispatchMessage]);
 
-  // 3b. Skip Prep Time (Strict active speaker authorization guard)
-  const broadcastSkipPrep = useCallback(() => {
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('turn', roomId, {
+          text: turn.text,
+          passed: !!turn.passed,
+          flagged: !!turn.flagged
+        });
+        if (v) syncServerView(v);
+      } catch (err) {
+        console.warn('Online submit turn error:', err);
+      }
+    }
+  }, [dispatchMessage, isOnline, roomId, syncServerView]);
+
+  // 5. Skip Prep Time
+  const broadcastSkipPrep = useCallback(async () => {
     const currentActive = roomStateRef.current.activeSpeaker;
     if (userProfile.role !== currentActive) {
-      console.warn(`[SECURITY GUARD] Rejected attempt by '${userProfile.role}' to skip prep. Authorized speaker is '${currentActive}'.`);
       return false;
     }
 
@@ -348,20 +421,79 @@ export function useRoomSync({
       prepSeconds: 0
     }));
 
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('speak', roomId);
+        if (v) syncServerView(v);
+      } catch (err) {
+        console.warn('Online skip prep error:', err);
+      }
+    }
+
     return true;
-  }, [userProfile.role, dispatchMessage]);
+  }, [userProfile.role, dispatchMessage, isOnline, roomId, syncServerView]);
 
-  // 4. Phase Changes (Debate -> Deliberation -> Verdict)
-  const broadcastPhase = useCallback((phase, verdict = null) => {
-    dispatchMessage(generalChannelRef.current, {
-      type: 'PHASE_CHANGE',
-      payload: { phase, verdict },
-      senderId: CLIENT_ID
-    });
-  }, [dispatchMessage]);
+  // 6. Concede
+  const broadcastConcede = useCallback(async () => {
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('concede', roomId);
+        if (v) {
+          syncServerView(v);
+          return v.verdict;
+        }
+      } catch (err) {
+        console.warn('Online concede error:', err);
+      }
+    }
+    return null;
+  }, [isOnline, roomId, syncServerView]);
 
-  // 5. Verdict Reveal
-  const broadcastVerdict = useCallback((verdict) => {
+  // 7. Request End & Mutual End
+  const broadcastRequestEnd = useCallback(async () => {
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('requestEnd', roomId);
+        if (v) syncServerView(v);
+      } catch (err) {
+        console.warn('Online requestEnd error:', err);
+      }
+    }
+  }, [isOnline, roomId, syncServerView]);
+
+  const broadcastRespondEnd = useCallback(async (accept) => {
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('respondEnd', roomId, { accept });
+        if (v) syncServerView(v);
+      } catch (err) {
+        console.warn('Online respondEnd error:', err);
+      }
+    }
+  }, [isOnline, roomId, syncServerView]);
+
+  // 8. Switch Seat in Lobby
+  const switchSeat = useCallback(async (targetSeat, name) => {
+    if (isOnline && roomId) {
+      const v = await sendRoomAction('switchSeat', roomId, { seat: targetSeat, name });
+      if (v) syncServerView(v);
+      return v;
+    }
+    return null;
+  }, [isOnline, roomId, syncServerView]);
+
+  // 9. Start Debate
+  const startDebate = useCallback(async () => {
+    if (isOnline && roomId) {
+      const v = await sendRoomAction('start', roomId);
+      if (v) syncServerView(v);
+      return v;
+    }
+    return null;
+  }, [isOnline, roomId, syncServerView]);
+
+  // 10. Verdict Broadcast
+  const broadcastVerdict = useCallback(async (verdict) => {
     dispatchMessage(generalChannelRef.current, {
       type: 'VERDICT_REVEAL',
       payload: { verdict },
@@ -372,16 +504,24 @@ export function useRoomSync({
       phase: 'verdict',
       verdict
     }));
-  }, [dispatchMessage]);
 
-  // 6. Reset Debate State (for starting new clean room)
+    if (isOnline && roomId) {
+      try {
+        await sendRoomAction('setVerdict', roomId, { verdict, notice: null });
+      } catch (err) {
+        console.warn('Online setVerdict error:', err);
+      }
+    }
+  }, [dispatchMessage, isOnline, roomId]);
+
+  // 11. Reset State
   const resetDebateState = useCallback((newState = {}) => {
     const fresh = {
       phase: 'debate',
       activeSpeaker: 'for',
       turnNo: 1,
-      remainingFor: newState.remainingFor || 300,
-      remainingAgainst: newState.remainingAgainst || 300,
+      remainingFor: newState.remainingFor || 600,
+      remainingAgainst: newState.remainingAgainst || 600,
       prepSeconds: newState.prepSeconds ?? 0,
       transcript: [],
       verdict: null,
@@ -398,6 +538,7 @@ export function useRoomSync({
   return {
     clientId: CLIENT_ID,
     participants,
+    serverView,
     roomState,
     setRoomState,
     opponentTyping,
@@ -405,8 +546,13 @@ export function useRoomSync({
     broadcastTyping,
     broadcastTurn,
     broadcastSkipPrep,
-    broadcastPhase,
+    broadcastConcede,
+    broadcastRequestEnd,
+    broadcastRespondEnd,
     broadcastVerdict,
-    resetDebateState
+    switchSeat,
+    startDebate,
+    resetDebateState,
+    syncServerView
   };
 }

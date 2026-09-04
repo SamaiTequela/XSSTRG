@@ -68,6 +68,26 @@ export function ParlourLobby({
   const [roomCode, setRoomCode] = useState(() => initialRoomCode || generateRandomRoomCode());
   const [hideRoomCode, setHideRoomCode] = useState(false);
 
+  // Online chamber action: create vs join
+  const [onlineAction, setOnlineAction] = useState('create'); // 'create' | 'join'
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [lobbyError, setLobbyError] = useState('');
+
+  // Auto-detect ?room=XXXX from invitation link
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRoom = urlParams.get('room');
+      if (urlRoom) {
+        const clean = urlRoom.toUpperCase().trim().slice(0, 8);
+        setRoomCode(clean);
+        setJoinCodeInput(clean);
+        setMode('online');
+        setOnlineAction('join');
+      }
+    }
+  }, []);
+
   const handleSurpriseMotion = () => {
     playClick();
     const remaining = CURATED_MOTIONS.filter((m) => m !== motionText);
@@ -92,25 +112,36 @@ export function ParlourLobby({
   const handleStart = (e) => {
     e?.preventDefault();
     playClick();
+    setLobbyError('');
     
     let resolvedRole = selectedRole;
     if (mode === 'online' && selectedRole === 'random') {
       resolvedRole = Math.random() < 0.5 ? 'for' : 'against';
     } else if (mode === 'jury') {
-      resolvedRole = 'judge';
+      resolvedRole = selectedRole === 'spectator' ? 'spectator' : (selectedRole || 'spectator');
     } else if (mode === 'offline') {
       resolvedRole = 'for';
     }
 
+    const effectiveCode = (onlineAction === 'join' ? joinCodeInput : roomCode).trim().toUpperCase();
+
+    if (mode !== 'offline' && onlineAction === 'join') {
+      if (!effectiveCode || effectiveCode.length < 4) {
+        setLobbyError('Please enter a valid 4-letter room code.');
+        return;
+      }
+    }
+
     onEnterChamber({
       mode,
+      action: onlineAction,
       motion: motionText,
       role: resolvedRole,
-      name: mode === 'offline' ? nameFor : (speakerName.trim() || 'Alex'),
+      name: mode === 'offline' ? nameFor : (speakerName.trim() || 'Speaker'),
       nameFor: nameFor.trim() || 'Alex',
       nameAgainst: nameAgainst.trim() || 'Sam',
       remainingSeconds: timeMinutes * 60,
-      roomCode: (roomCode.trim() || generateRandomRoomCode()).toUpperCase(),
+      roomCode: effectiveCode || generateRandomRoomCode(),
       hideRoomCode
     });
   };
@@ -265,6 +296,48 @@ export function ParlourLobby({
               Crowd Jury
             </button>
           </div>
+
+          {/* Create vs Join Tab for Online / Crowd Jury */}
+          {mode !== 'offline' && (
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => { playClick(); setOnlineAction('create'); }}
+                style={{
+                  flex: 1,
+                  padding: '7px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${onlineAction === 'create' ? 'var(--brass)' : 'var(--line)'}`,
+                  background: onlineAction === 'create' ? 'var(--brass-subtle)' : 'transparent',
+                  color: onlineAction === 'create' ? 'var(--brass)' : 'var(--ink-secondary)',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                + Create Chamber
+              </button>
+              <button
+                type="button"
+                onClick={() => { playClick(); setOnlineAction('join'); }}
+                style={{
+                  flex: 1,
+                  padding: '7px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${onlineAction === 'join' ? 'var(--brass)' : 'var(--line)'}`,
+                  background: onlineAction === 'join' ? 'var(--brass-subtle)' : 'transparent',
+                  color: onlineAction === 'join' ? 'var(--brass)' : 'var(--ink-secondary)',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Join with Code
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Motion Before the House Card */}
@@ -581,38 +654,47 @@ export function ParlourLobby({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <label htmlFor="room-code-input" className="eyebrow" style={{ color: 'var(--brass)' }}>
-                  ROOM CODE
+                  {onlineAction === 'join' ? 'ENTER ROOM CODE' : 'ROOM CODE'}
                 </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => { playClick(); setHideRoomCode(!hideRoomCode); }}
-                    className="btn-ghost"
-                    style={{ padding: '2px 6px', fontSize: '0.74rem' }}
-                    title={hideRoomCode ? 'Show room code' : 'Hide room code'}
-                  >
-                    {hideRoomCode ? <Eye size={13} /> : <EyeOff size={13} />}
-                    <span style={{ marginLeft: '4px' }}>{hideRoomCode ? 'Show' : 'Hide'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRegenerateCode}
-                    className="btn-ghost"
-                    style={{ padding: '2px 6px', fontSize: '0.74rem' }}
-                    title="Generate a new random room code"
-                  >
-                    <Shuffle size={12} />
-                    <span style={{ marginLeft: '4px' }}>Random</span>
-                  </button>
-                </div>
+                {onlineAction === 'create' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => { playClick(); setHideRoomCode(!hideRoomCode); }}
+                      className="btn-ghost"
+                      style={{ padding: '2px 6px', fontSize: '0.74rem' }}
+                      title={hideRoomCode ? 'Show room code' : 'Hide room code'}
+                    >
+                      {hideRoomCode ? <Eye size={13} /> : <EyeOff size={13} />}
+                      <span style={{ marginLeft: '4px' }}>{hideRoomCode ? 'Show' : 'Hide'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateCode}
+                      className="btn-ghost"
+                      style={{ padding: '2px 6px', fontSize: '0.74rem' }}
+                      title="Generate a new random room code"
+                    >
+                      <Shuffle size={12} />
+                      <span style={{ marginLeft: '4px' }}>Random</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <input
-                type={hideRoomCode ? 'password' : 'text'}
+                type={onlineAction === 'create' && hideRoomCode ? 'password' : 'text'}
                 id="room-code-input"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 8))}
-                placeholder="W7KP"
+                value={onlineAction === 'join' ? joinCodeInput : roomCode}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().slice(0, 8);
+                  if (onlineAction === 'join') {
+                    setJoinCodeInput(val);
+                  } else {
+                    setRoomCode(val);
+                  }
+                }}
+                placeholder="e.g. W7KP"
                 style={{
                   padding: '11px 14px',
                   fontSize: '1.05rem',
@@ -640,6 +722,23 @@ export function ParlourLobby({
           )}
         </div>
 
+        {/* Validation Error Alert */}
+        {lobbyError && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(244, 67, 54, 0.12)',
+              border: '1px solid rgba(244, 67, 54, 0.3)',
+              color: '#f44336',
+              fontSize: '0.84rem',
+              fontFamily: 'Space Mono, monospace'
+            }}
+          >
+            {lobbyError}
+          </div>
+        )}
+
         {/* Enter Chamber Primary Action */}
         <div style={{ paddingTop: '8px' }}>
           <button
@@ -661,7 +760,13 @@ export function ParlourLobby({
               boxShadow: 'var(--shadow-lift)'
             }}
           >
-            <span>Enter The Chamber</span>
+            <span>
+              {mode === 'offline'
+                ? 'Enter The Chamber'
+                : onlineAction === 'join'
+                  ? 'Join Chamber'
+                  : 'Create Chamber & Enter Lobby'}
+            </span>
             <ArrowRight size={18} />
           </button>
         </div>

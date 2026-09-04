@@ -99,19 +99,8 @@ export function DebateHeader({
           </div>
         </div>
 
-        {/* Right: Actions, Room Code (online only), Theme Switcher */}
+        {/* Right: Room Code (online only), Theme Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {onReturnLobby && (
-            <button
-              onClick={() => { playClick(); onReturnLobby(); }}
-              id="return-lobby-header-btn"
-              className="btn-ghost"
-              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-              title="Return to Parlour Lobby"
-            >
-              ← Parlour Lobby
-            </button>
-          )}
 
           {/* Room Code Badge: ONLY rendered in Online / Jury chambers, NOT in offline split-screen! */}
           {!isOffline && (

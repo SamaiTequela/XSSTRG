@@ -35,8 +35,8 @@ function createLimited(ip) {
   return list.length > MAX_CREATE;
 }
 const ipOf = (req) =>
-  (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim() ||
-  req.socket?.remoteAddress ||
+  (req?.headers?.["x-forwarded-for"] || "").toString().split(",")[0].trim() ||
+  req?.socket?.remoteAddress ||
   "unknown";
 
 export default async function handler(req, res) {
@@ -126,22 +126,34 @@ async function handlePost(req, res, redis) {
     const asSpectator = judgeMode && body.role === "spectator";
 
     let code = null;
-    for (let i = 0; i < 6; i++) {
-      const c = randCode();
-      if (!(await roomExists(redis, c))) {
-        code = c;
-        break;
+    const requestedCode = clip(body.code, 8).toUpperCase();
+    if (requestedCode && requestedCode.length === 4 && !(await roomExists(redis, requestedCode))) {
+      code = requestedCode;
+    } else {
+      for (let i = 0; i < 6; i++) {
+        const c = randCode();
+        if (!(await roomExists(redis, c))) {
+          code = c;
+          break;
+        }
       }
     }
     if (!code) return res.status(503).json({ error: "Couldn't allocate a room. Try again." });
 
-    const room = freshRoom(code, motion, PER_SECS.includes(perSecs) ? perSecs : 300, judgeMode);
+    const room = freshRoom(code, motion, PER_SECS.includes(perSecs) ? perSecs : 600, judgeMode);
     room.host = clientId;
 
     if (asSpectator) {
       room.spectators = [freshSpectator(clientId, name)];
     } else {
-      const mySide = Math.random() < 0.5 ? "for" : "against";
+      let mySide = "for";
+      if (body.role === "against") {
+        mySide = "against";
+      } else if (body.role === "for") {
+        mySide = "for";
+      } else {
+        mySide = Math.random() < 0.5 ? "for" : "against";
+      }
       room.seats[mySide] = { clientId, name, lastSeen: nowMs() };
     }
 
