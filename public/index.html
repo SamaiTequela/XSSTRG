@@ -2272,6 +2272,33 @@
     }
   });
 
+  /* The floor is for your own words. Pasting is blocked in every mode --
+     hot-seat and two-device alike, since both share this one box. Dragged text
+     never fires "paste", so "drop" is caught too, and "dragover" has to be
+     cancelled or the textarea takes the drag before "drop" can stop it. A
+     deterrent, not a lock: it stops a casual paste from another tab, nothing
+     more. Cutting and repasting inside the box is allowed. */
+  var speechClip = "";
+  ["copy", "cut"].forEach(function (ev) {
+    $("speech").addEventListener(ev, function () {
+      // getSelection() is blind to a textarea’s interior, so read the field.
+      var el = $("speech");
+      var sel = el.value.slice(el.selectionStart, el.selectionEnd).trim();
+      if (sel) speechClip = sel;
+    });
+  });
+  ["paste", "drop"].forEach(function (ev) {
+    $("speech").addEventListener(ev, function (e) {
+      var dt = e.clipboardData || e.dataTransfer;
+      var incoming = dt ? String(dt.getData("text") || "").trim() : "";
+      // Let a player shuffle their own text around inside the box.
+      if (incoming && incoming === speechClip) return;
+      e.preventDefault();
+      toast("Paste is off — make your case in your own words.");
+    });
+  });
+  $("speech").addEventListener("dragover", function (e) { e.preventDefault(); });
+
   function renderTranscript() { paintTranscript(state.transcript); }
 
   /* The debate is over, but the adjudicator waits until both speakers press
