@@ -1981,7 +1981,9 @@
     $("upPill").textContent = side === "for" ? "FOR THE MOTION" : "AGAINST THE MOTION";
     $("upPill").className = "pill " + side;
     $("upClock").textContent = fmt(state.remaining[side]) + " remaining";
-    if (!state.transcript || state.transcript.length === 0) {
+    if (outOfTime(other(side))) {
+      $("upHint").textContent = names(other(side)) + "'s clock has run out. The floor is yours until yours does too.";
+    } else if (!state.transcript || state.transcript.length === 0) {
       $("upHint").textContent = "You open the debate. Take the floor and set the terms of the motion.";
     } else {
       $("upHint").innerHTML = 'Take the floor and you\'ll get <strong id="upPrepHint">' + fmt(prepMsFor(state.perSecs)) + '</strong> to read the record before your own clock starts.';
@@ -2035,12 +2037,21 @@
     $("clockAgainst").classList.toggle("low", liveRemaining("against") <= 30000);
   }
 
+  function outOfTime(side) { return liveRemaining(side) <= 0; }
+
+  /* A speaker whose clock runs out loses the floor, not the debate. The record
+     only closes once neither side has time left to answer. */
+  function advanceOrEnd() {
+    if (outOfTime("for") && outOfTime("against")) { endDebate("flag"); return; }
+    nextTurn();
+  }
+
   function tick() {
     renderClocks();
     if (liveRemaining(state.active) <= 0) {
       commitTime();
       flushTurn(true);
-      endDebate("flag");
+      advanceOrEnd();
     }
   }
 
@@ -2068,7 +2079,9 @@
   }
 
   function nextTurn() {
-    state.active = other(state.active);
+    // Only hand over if the other side can still answer; against a flagged
+    // opponent the floor stays put until this clock runs out too.
+    if (!outOfTime(other(state.active))) state.active = other(state.active);
     state.turnNo += 1;
     $("clockFor").classList.remove("pulsing");
     $("clockAgainst").classList.remove("pulsing");
@@ -2085,7 +2098,7 @@
     if (!$("speech").value.trim()) { $("speech").focus({ preventScroll: true }); return; }
     commitTime();
     flushTurn(false);
-    nextTurn();
+    advanceOrEnd();
   });
 
   function concedeDebate() {
