@@ -67,7 +67,7 @@ const SCORE_RUBRIC = {
   10: 'Decisive & flawless performance'
 };
 
-export default function JuryScoringStage({
+export function JuryScoringStage({
   motionText,
   nameFor = 'Alex',
   nameAgainst = 'Sam',
@@ -861,3 +861,5 @@ export default function JuryScoringStage({
     </div>
   );
 }
+
+export default JuryScoringStage;

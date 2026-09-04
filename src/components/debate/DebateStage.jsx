@@ -8,7 +8,7 @@ import TranscriptRecord from './TranscriptRecord';
 import MobileControlBar from './MobileControlBar';
 import TurnHandoffModal from './TurnHandoffModal';
 
-export default function DebateStage({
+export function DebateStage({
   userRole = 'for', // 'for' | 'against' | 'judge'
   userName = 'Alex',
   roomCode = 'HY7X',
@@ -287,3 +287,5 @@ export default function DebateStage({
     </div>
   );
 }
+
+export default DebateStage;

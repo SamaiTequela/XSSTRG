@@ -32,7 +32,7 @@ export const CURATED_MOTIONS = [
   "Professional sports leagues should permit genetic enhancement therapies under medical supervision."
 ];
 
-export default function ParlourLobby({
+export function ParlourLobby({
   initialMotion = CURATED_MOTIONS[0],
   initialRole = 'for',
   initialName = 'Alex',
@@ -42,7 +42,7 @@ export default function ParlourLobby({
   onEnterChamber
 }) {
   const [mode, setMode] = useState('hotseat'); // 'hotseat' | 'online'
-  const [motion, setMotion] = useState(initialMotion);
+  const [motionText, setMotionText] = useState(initialMotion);
   const [isEditingMotion, setIsEditingMotion] = useState(false);
   const [customMotionText, setCustomMotionText] = useState(initialMotion);
   const [selectedRole, setSelectedRole] = useState(initialRole); // 'for' | 'against' | 'judge'
@@ -51,15 +51,15 @@ export default function ParlourLobby({
   const [roomCode, setRoomCode] = useState(initialRoomCode);
 
   const handleSurpriseMotion = () => {
-    const remaining = CURATED_MOTIONS.filter((m) => m !== motion);
+    const remaining = CURATED_MOTIONS.filter((m) => m !== motionText);
     const random = remaining[Math.floor(Math.random() * remaining.length)];
-    setMotion(random);
+    setMotionText(random);
     setCustomMotionText(random);
   };
 
   const handleSaveCustomMotion = () => {
     if (customMotionText.trim()) {
-      setMotion(customMotionText.trim().slice(0, 300));
+      setMotionText(customMotionText.trim().slice(0, 300));
     }
     setIsEditingMotion(false);
   };
@@ -68,7 +68,7 @@ export default function ParlourLobby({
     e?.preventDefault();
     onEnterChamber({
       mode,
-      motion,
+      motion: motionText,
       role: selectedRole,
       name: speakerName.trim() || (selectedRole === 'for' ? 'Alex' : 'Sam'),
       remainingSeconds: timeMinutes * 60,
@@ -269,7 +269,7 @@ export default function ParlourLobby({
                   lineHeight: 1.35
                 }}
               >
-                "{motion}"
+                "{motionText}"
               </blockquote>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -495,3 +495,5 @@ export default function ParlourLobby({
     </div>
   );
 }
+
+export default ParlourLobby;

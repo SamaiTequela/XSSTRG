@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Timer, Zap, Lock, ShieldCheck } from 'lucide-react';
 
-export default function PrepTimeBanner({ 
+export function PrepTimeBanner({ 
   prepSecondsLeft = 14, 
   speakerName = 'Alex',
   side = 'for', // 'for' | 'against' - incoming active speaker side
@@ -113,3 +113,5 @@ export default function PrepTimeBanner({
     </motion.div>
   );
 }
+
+export default PrepTimeBanner;

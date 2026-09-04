@@ -12,6 +12,7 @@
     "dev:ui": "vite",
     "build": "vite build",
     "build:ui": "vite build",
+    "preview": "vite preview",
     "deploy": "vercel deploy --prod"
   },
   "dependencies": {

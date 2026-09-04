@@ -9,7 +9,7 @@ const ADJUDICATION_STAGES = [
   "Synthesizing anonymous jury ballots & transcript citations..."
 ];
 
-export default function DeliberationLoadingScreen({ isOpen = false }) {
+export function DeliberationLoadingScreen({ isOpen = false }) {
   const [stageIndex, setStageIndex] = useState(0);
   const [progress, setProgress] = useState(5);
 
@@ -227,3 +227,5 @@ export default function DeliberationLoadingScreen({ isOpen = false }) {
     </AnimatePresence>
   );
 }
+
+export default DeliberationLoadingScreen;
