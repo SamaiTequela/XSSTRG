@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 import { adjudicateDebate } from './api/adjudicate.js';
 
 export default defineConfig({
+  base: '/',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  },
   plugins: [
     react(),
     {
