@@ -12,7 +12,7 @@
 
 import { getRedis, readRoom, writeRoom, roomExists, withLock } from "../lib/redis.js";
 import {
-  freshRoom, applyAction, view,
+  freshRoom, freshSpectator, applyAction, view,
   PER_SECS, MAX_MOTION, MAX_NAME, clip,
   JUDGE_SCORING_MS,
 } from "../lib/room-logic.js";
@@ -122,6 +122,8 @@ async function handlePost(req, res, redis) {
     const perSecs = Number(body.perSecs);
     const motion = clip(body.motion, MAX_MOTION);
     const judgeMode = !!body.judgeMode;
+    // Crowd Jury rooms let the creator sit on the jury instead of debating.
+    const asSpectator = judgeMode && body.role === "spectator";
 
     let code = null;
     for (let i = 0; i < 6; i++) {
@@ -136,10 +138,8 @@ async function handlePost(req, res, redis) {
     const room = freshRoom(code, motion, PER_SECS.includes(perSecs) ? perSecs : 300, judgeMode);
     room.host = clientId;
 
-    if (judgeMode) {
-      // In judge mode, creator joins as a player
-      const mySide = Math.random() < 0.5 ? "for" : "against";
-      room.seats[mySide] = { clientId, name, lastSeen: nowMs() };
+    if (asSpectator) {
+      room.spectators = [freshSpectator(clientId, name)];
     } else {
       const mySide = Math.random() < 0.5 ? "for" : "against";
       room.seats[mySide] = { clientId, name, lastSeen: nowMs() };

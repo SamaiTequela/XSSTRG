@@ -901,6 +901,39 @@
     line-height: 1.45;
   }
 
+  /* Crowd Jury verdict: anonymous grade tiles, and the jury's remarks written
+     into the box the AI adjudicator normally fills. */
+  .judge-cards.anon {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px;
+  }
+  .judge-cards.anon .judge-verdict-card { padding: 12px 14px; }
+  .judge-cards.anon .jvc-top { margin-bottom: 0; flex-direction: column; align-items: flex-start; gap: 7px; }
+  .judge-cards.anon .jvc-name {
+    font-family: "Space Mono", monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); flex: none;
+  }
+  .jury-remarks { margin-top: 18px; text-align: left; }
+  .jury-remarks-head {
+    font-family: "Space Mono", monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  .jury-remark {
+    padding: 10px 14px; margin-bottom: 8px; background: var(--chamber);
+    border-left: 3px solid var(--brass); border-radius: 4px 8px 8px 4px;
+  }
+  .jury-remark:last-child { margin-bottom: 0; }
+  .jr-who {
+    display: block; font-family: "Space Mono", monospace; font-size: 10.5px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 4px;
+  }
+  .jr-text { font-size: 14.5px; color: var(--ink); font-style: italic; line-height: 1.5; }
+  /* The jury scores but writes no per-speaker breakdown, so drop the empty
+     headings the AI adjudicator would have filled. */
+  .assess-grid.jury-mode h4,
+  .assess-grid.jury-mode ul,
+  .assess-grid.jury-mode .advice { display: none; }
+
   /* Reallocate modal */
   .reallocate-sheet { max-width: 580px !important; }
   .reallocate-list {
@@ -1304,6 +1337,10 @@
         <div class="winner-name" id="winnerName">—</div>
         <p class="headline" id="verdictHeadline"></p>
         <p class="rationale" id="verdictRationale"></p>
+        <div class="jury-remarks" id="juryRemarks" hidden>
+          <div class="jury-remarks-head">The jury's remarks</div>
+          <div id="juryRemarksList"></div>
+        </div>
       </div>
 
       <div class="assess-grid" id="assessGrid">
@@ -1337,7 +1374,7 @@
 
       <!-- Jury breakdown (Crowd Jury mode only) -->
       <div class="jury-breakdown" id="juryBreakdown" hidden>
-        <h3>Judge scores &amp; remarks</h3>
+        <h3>How each judge scored</h3>
         <div class="judge-cards" id="judgeCards"></div>
       </div>
 
@@ -1380,7 +1417,7 @@
 <!-- Role picker overlay (Crowd Jury join flow) -->
 <div class="overlay role-picker" id="rolePickerOverlay" hidden>
   <div class="sheet">
-    <div class="up-name" style="font-size:clamp(22px,5vw,28px);">How will you join?</div>
+    <div class="up-name" id="rpTitle" style="font-size:clamp(22px,5vw,28px);">How will you join?</div>
     <p class="rp-hint" id="rpRoomCode" style="margin:8px 0 0; font-family:'Space Mono',monospace; font-size:13px; color:var(--ink-soft);">Room —</p>
     <div id="rpFullNote" class="rp-full-note" hidden>Both player seats are taken. You can join as a judge.</div>
     <div class="role-grid">
@@ -1666,7 +1703,10 @@
       headline: typeof d.headline === "string" ? d.headline : "The house is split.",
       rationale: typeof d.rationale === "string" ? d.rationale : "",
       "for": side(d["for"]),
-      "against": side(d["against"])
+      "against": side(d["against"]),
+      // Crowd Jury only: carried through so the anonymous breakdown can render.
+      judgeCount: typeof d.judgeCount === "number" ? d.judgeCount : null,
+      individualScores: Array.isArray(d.individualScores) ? d.individualScores : null
     };
   }
   function updateCount() {
@@ -1776,6 +1816,7 @@
       return;
     }
     breakdown.hidden = false;
+    cards.className = "judge-cards anon";
     cards.innerHTML = "";
     v.individualScores.forEach(function (j, i) {
       var card = document.createElement("div");
@@ -1785,7 +1826,8 @@
       topDiv.className = "jvc-top";
       var nameEl = document.createElement("div");
       nameEl.className = "jvc-name";
-      nameEl.textContent = j.name || "Judge";
+      // Anonymous: the server ships a label, never the juror's name.
+      nameEl.textContent = j.label || ("Judge " + (i + 1));
       var scoresEl = document.createElement("div");
       scoresEl.className = "jvc-scores";
       scoresEl.innerHTML = '<span class="jvc-score-for">FOR ' + j.scoreFor + '/10</span>' +
@@ -1793,13 +1835,33 @@
       topDiv.appendChild(nameEl);
       topDiv.appendChild(scoresEl);
       card.appendChild(topDiv);
-      if (j.remarks && j.remarks.trim()) {
-        var rem = document.createElement("div");
-        rem.className = "jvc-remarks";
-        rem.textContent = "\u201c" + j.remarks.trim() + "\u201d";
-        card.appendChild(rem);
-      }
       cards.appendChild(card);
+    });
+  }
+
+  /* Crowd Jury: the jurors' remarks go where the AI adjudicator's prose
+     normally sits, attributed to the same anonymous labels as the grades. */
+  function renderJuryRemarks(v) {
+    var box = $("juryRemarks");
+    var list = $("juryRemarksList");
+    var withRemarks = ((v && v.individualScores) || []).filter(function (j) {
+      return j.remarks && j.remarks.trim();
+    });
+    if (!withRemarks.length) { box.hidden = true; list.innerHTML = ""; return; }
+    box.hidden = false;
+    list.innerHTML = "";
+    withRemarks.forEach(function (j, i) {
+      var wrap = document.createElement("div");
+      wrap.className = "jury-remark";
+      var who = document.createElement("span");
+      who.className = "jr-who";
+      who.textContent = j.label || ("Judge " + (i + 1));
+      var txt = document.createElement("span");
+      txt.className = "jr-text";
+      txt.textContent = "\u201c" + j.remarks.trim() + "\u201d";
+      wrap.appendChild(who);
+      wrap.appendChild(txt);
+      list.appendChild(wrap);
     });
   }
 
@@ -1846,8 +1908,12 @@
     $("againstAdvice").textContent = v["against"].advice ? "Advice · " + v["against"].advice : "";
     $("againstAdvice").hidden = !v["against"].advice;
 
-    // Jury breakdown (Crowd Jury mode)
+    // Crowd Jury only - identified by the per-judge scores the jury verdict
+    // carries. An AI verdict has none, so nothing below changes for it.
+    var juried = !!(v.individualScores && v.individualScores.length);
+    $("assessGrid").classList.toggle("jury-mode", juried);
     renderVerdictJuryBreakdown(v);
+    renderJuryRemarks(juried ? v : null);
   }
 
   function show(name) {
@@ -2425,6 +2491,8 @@
   $("createRoomBtn").addEventListener("click", function () {
     var name = ($("onlineName").value || "").trim().slice(0, 24);
     if (!name) { oErr("Enter your name first."); $("onlineName").focus(); return; }
+    // Crowd Jury: the creator chooses whether to debate or sit on the jury.
+    if (judgeMode) { openRolePicker("create", name, null, false); return; }
     $("createRoomBtn").disabled = true;
     oPost({ action: "create", name: name, perSecs: state.perSecs, motion: pickMotion(), judgeMode: judgeMode })
       .then(function (j) { oEnter(j.view); })
@@ -2454,19 +2522,7 @@
         }
         var v = r.j.view;
         if (v && v.config && v.config.judgeMode) {
-          // Show role picker
-          var playersFull = v.seats.for.filled && v.seats.against.filled;
-          $("rpRoomCode").textContent = "Room " + code;
-          $("rpFullNote").hidden = !playersFull;
-          $("rpPlayerCard").classList.remove("selected");
-          $("rpJudgeCard").classList.remove("selected");
-          $("rpConfirmBtn").disabled = true;
-          $("rpPlayerCard").style.opacity = playersFull ? "0.4" : "";
-          $("rpPlayerCard").style.pointerEvents = playersFull ? "none" : "";
-          online._pendingJoinName = name;
-          online._pendingJoinCode = code;
-          online._pendingJoinRole = null;
-          $("rolePickerOverlay").hidden = false;
+          openRolePicker("join", name, code, v.seats.for.filled && v.seats.against.filled);
           $("joinRoomBtn").disabled = false;
           return;
         }
@@ -2481,7 +2537,24 @@
       });
   }
 
-  /* --- role picker overlay --- */
+  /* --- role picker overlay (used when creating and when joining) --- */
+  function openRolePicker(mode, name, code, playersFull) {
+    online._pendingRoleAction = mode;
+    online._pendingJoinName = name;
+    online._pendingJoinCode = code;
+    online._pendingJoinRole = null;
+    $("rpTitle").textContent = mode === "create" ? "How will you take part?" : "How will you join?";
+    $("rpRoomCode").textContent = mode === "create" ? "New Crowd Jury room" : "Room " + code;
+    $("rpConfirmBtn").textContent = mode === "create" ? "Create room \u2192" : "Join \u2192";
+    $("rpFullNote").hidden = !playersFull;
+    $("rpPlayerCard").classList.remove("selected");
+    $("rpJudgeCard").classList.remove("selected");
+    $("rpConfirmBtn").disabled = true;
+    $("rpPlayerCard").style.opacity = playersFull ? "0.4" : "";
+    $("rpPlayerCard").style.pointerEvents = playersFull ? "none" : "";
+    $("rolePickerOverlay").hidden = false;
+  }
+
   function rpSelectRole(role) {
     online._pendingJoinRole = role;
     $("rpPlayerCard").classList.toggle("selected", role === "player");
@@ -2507,6 +2580,13 @@
     var role = online._pendingJoinRole;
     if (!role) return;
     $("rpConfirmBtn").disabled = true;
+    if (online._pendingRoleAction === "create") {
+      oPost({ action: "create", name: name, perSecs: state.perSecs, motion: pickMotion(), judgeMode: true, role: role })
+        .then(function (j) { $("rolePickerOverlay").hidden = true; oEnter(j.view); })
+        .catch(function (e) { $("rolePickerOverlay").hidden = true; oErr(e.message || "Couldn't create a room."); })
+        .then(function () { $("rpConfirmBtn").disabled = false; });
+      return;
+    }
     oPost({ action: "join", code: code, name: name, role: role })
       .then(function (j) {
         $("rolePickerOverlay").hidden = true;
@@ -2758,10 +2838,12 @@
     var amSpectatorLobby = isJudgeMode && amSpectator;
     $("lobbySpectatorView").hidden = !amSpectatorLobby;
 
-    $("lobbyStartBtn").hidden = !online.isHost || amSpectator;
+    // The host keeps the start button even from the jury bench, or a room
+    // created by a judge could never begin.
+    $("lobbyStartBtn").hidden = !online.isHost;
     var needJudges = isJudgeMode && specCount < 1;
     $("lobbyStartBtn").disabled = !bothIn || needJudges;
-    if (online.isHost && !amSpectator) {
+    if (online.isHost) {
       var baseHint = bothIn ? "Both speakers are in. Start when you're ready." : "Send the code or link \u2014 waiting for the other speaker\u2026";
       if (isJudgeMode && !bothIn) baseHint = "Waiting for both speakers to join\u2026";
       if (isJudgeMode && bothIn && specCount < 1) baseHint = "Need at least 1 judge to start. Share the link!";
