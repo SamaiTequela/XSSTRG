@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import DebateHeader from './DebateHeader';
 import ChessClocks from './ChessClocks';
@@ -7,10 +7,13 @@ import SpeakingDispatch from './SpeakingDispatch';
 import TranscriptRecord from './TranscriptRecord';
 import MobileControlBar from './MobileControlBar';
 import TurnHandoffModal from './TurnHandoffModal';
+import { playClick, playLowTimeTick, playClockFlagged } from '../../utils/soundEffects';
 
 export function DebateStage({
   userRole = 'for', // 'for' | 'against' | 'judge'
   userName = 'Alex',
+  nameFor = 'Alex',
+  nameAgainst = 'Sam',
   roomCode = 'HY7X',
   motionText,
   theme = 'light',
@@ -18,8 +21,9 @@ export function DebateStage({
   onTriggerDeliberation,
   onReturnLobby,
   roomSync,
-  gameMode = 'hotseat', // 'hotseat' | 'online'
-  initialSeconds = 300,
+  gameMode = 'offline', // 'offline' | 'online' | 'jury' | 'hotseat'
+  initialSeconds = 600,
+  initialHideCode = false,
   onConcedeVerdict
 }) {
   // Extract state from synchronized room hook if available
@@ -28,10 +32,11 @@ export function DebateStage({
   const activeSpeaker = roomState.activeSpeaker || 'for';
   const turnNo = roomState.turnNo || (turns.length + 1);
 
-  // In hotseat mode, the active player on the single device takes the floor
-  const effectiveRole = gameMode === 'hotseat' ? (userRole === 'judge' ? 'judge' : activeSpeaker) : userRole;
+  // In offline mode, the active player on the single device takes the floor
+  const isOffline = gameMode === 'offline' || gameMode === 'hotseat';
+  const effectiveRole = isOffline ? (userRole === 'judge' ? 'judge' : activeSpeaker) : userRole;
 
-  // Local chess clocks (initialized to full match time, e.g. 300 = 5:00)
+  // Local chess clocks (initialized to full match time, e.g. 600 = 10:00)
   const [remainingFor, setRemainingFor] = useState(roomState.remainingFor ?? initialSeconds);
   const [remainingAgainst, setRemainingAgainst] = useState(roomState.remainingAgainst ?? initialSeconds);
   const [prepSeconds, setPrepSeconds] = useState(roomState.prepSeconds ?? 0);
@@ -54,15 +59,33 @@ export function DebateStage({
     }
   }, [roomState.remainingFor, roomState.remainingAgainst, roomState.prepSeconds]);
 
-  // Chess clock countdown for active speaker (only when prep is finished)
+  // Chess clock countdown for active speaker with low-time audio warnings
   useEffect(() => {
     const timer = setInterval(() => {
       if (prepSeconds > 0) {
         setPrepSeconds((prev) => Math.max(0, prev - 1));
       } else if (activeSpeaker === 'for') {
-        setRemainingFor((prev) => (prev > 0 ? prev - 1 : 0));
+        setRemainingFor((prev) => {
+          if (prev <= 1) {
+            playClockFlagged();
+            return 0;
+          }
+          if (prev <= 30 && prev % 2 === 0) {
+            playLowTimeTick();
+          }
+          return prev - 1;
+        });
       } else if (activeSpeaker === 'against') {
-        setRemainingAgainst((prev) => (prev > 0 ? prev - 1 : 0));
+        setRemainingAgainst((prev) => {
+          if (prev <= 1) {
+            playClockFlagged();
+            return 0;
+          }
+          if (prev <= 30 && prev % 2 === 0) {
+            playLowTimeTick();
+          }
+          return prev - 1;
+        });
       }
     }, 1000);
     return () => clearInterval(timer);
@@ -70,7 +93,7 @@ export function DebateStage({
 
   // Submitting a turn
   const handleSubmitTurn = (text) => {
-    const currentName = activeSpeaker === 'for' ? (gameMode === 'hotseat' ? 'Alex' : userName) : (gameMode === 'hotseat' ? 'Sam' : userName);
+    const currentName = activeSpeaker === 'for' ? nameFor : nameAgainst;
     const nextSide = activeSpeaker === 'for' ? 'against' : 'for';
     const currentTurnNo = turns.length + 1;
     const nextTurnNo = currentTurnNo + 1;
@@ -106,6 +129,7 @@ export function DebateStage({
   };
 
   const handleSkipPrep = () => {
+    playClick();
     // Strict permission check: only active speaker can skip prep and force-start turn
     if (effectiveRole !== activeSpeaker) {
       console.warn(`[SECURITY GUARD] Rejected unauthorized prep skip attempt by '${effectiveRole}'. Active speaker is '${activeSpeaker}'.`);
@@ -120,6 +144,7 @@ export function DebateStage({
   };
 
   const handleRequestEnd = () => {
+    playClick();
     if (onTriggerDeliberation) {
       onTriggerDeliberation();
     }
@@ -127,8 +152,8 @@ export function DebateStage({
 
   const handleConcede = () => {
     const winner = activeSpeaker === 'for' ? 'against' : 'for';
-    const winnerName = winner === 'for' ? 'Alex' : 'Sam';
-    const loserName = activeSpeaker === 'for' ? 'Alex' : 'Sam';
+    const winnerName = winner === 'for' ? nameFor : nameAgainst;
+    const loserName = activeSpeaker === 'for' ? nameFor : nameAgainst;
     const currentTurnNo = turns.length + 1;
 
     const concessionVerdict = {
@@ -173,12 +198,13 @@ export function DebateStage({
         judgeCount={roomSync?.participants?.filter(p => p.role === 'judge').length || 0}
         motionText={motionText}
         initialSeconds={initialSeconds}
+        initialHideCode={initialHideCode}
       />
 
       {/* 2. Dual Chess Clocks Arena */}
       <ChessClocks
-        nameFor="Alex"
-        nameAgainst="Sam"
+        nameFor={nameFor}
+        nameAgainst={nameAgainst}
         remainingFor={remainingFor}
         remainingAgainst={remainingAgainst}
         activeSpeaker={activeSpeaker}
@@ -193,7 +219,7 @@ export function DebateStage({
         {prepSeconds > 0 && (
           <PrepTimeBanner
             prepSecondsLeft={prepSeconds}
-            speakerName={activeSpeaker === 'for' ? 'Alex' : 'Sam'}
+            speakerName={activeSpeaker === 'for' ? nameFor : nameAgainst}
             side={activeSpeaker}
             userRole={effectiveRole}
             onSkipPrep={handleSkipPrep}
@@ -221,7 +247,7 @@ export function DebateStage({
           }}
         >
           <SpeakingDispatch
-            currentSpeaker={activeSpeaker === 'for' ? 'Alex' : 'Sam'}
+            currentSpeaker={activeSpeaker === 'for' ? nameFor : nameAgainst}
             side={activeSpeaker}
             isMyTurn={isMyTurn}
             onSubmitTurn={handleSubmitTurn}
@@ -232,6 +258,7 @@ export function DebateStage({
             opponentTyping={roomSync?.opponentTyping}
             userRole={effectiveRole}
             judgeLiveDraft={roomSync?.judgeLiveDraft}
+            gameMode={gameMode}
           />
         </div>
 

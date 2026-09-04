@@ -218,7 +218,7 @@ export function DeliberationLoadingScreen({ isOpen = false }) {
               color: '#a5a5b6'
             }}
           >
-            <span>GEMINI 3.5 FLASH</span>
+            <span>AI ADJUDICATOR</span>
             <span>•</span>
             <span>STRUCTURED CITATION REASONING</span>
           </div>

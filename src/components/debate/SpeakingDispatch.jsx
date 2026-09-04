@@ -13,6 +13,7 @@ import {
   FileCheck2,
   Sparkles
 } from 'lucide-react';
+import { playClick, playTurnSubmit } from '../../utils/soundEffects';
 
 export default function SpeakingDispatch({
   currentSpeaker = 'Alex',
@@ -25,7 +26,8 @@ export default function SpeakingDispatch({
   onTyping,
   opponentTyping = { isTyping: false, wordCount: 0, speaker: '' },
   userRole = 'for', // 'for' | 'against' | 'judge'
-  judgeLiveDraft = { isTyping: false, text: '', wordCount: 0, speaker: '' }
+  judgeLiveDraft = { isTyping: false, text: '', wordCount: 0, speaker: '' },
+  gameMode = 'offline'
 }) {
   const [speechText, setSpeechText] = useState('');
   const [scratchpadText, setScratchpadText] = useState('');
@@ -38,6 +40,7 @@ export default function SpeakingDispatch({
 
   const isFor = side === 'for';
   const isJudge = userRole === 'judge';
+  const isOffline = gameMode === 'offline' || gameMode === 'hotseat';
 
   // Words & reading pace calculation
   const words = speechText.trim().split(/\s+/).filter(Boolean);
@@ -88,6 +91,7 @@ export default function SpeakingDispatch({
 
   const handleSubmit = () => {
     if (!speechText.trim() || disabled) return;
+    playTurnSubmit();
     onSubmitTurn(speechText);
     setSpeechText('');
     setIsConfirmingConcede(false);
@@ -494,23 +498,37 @@ export default function SpeakingDispatch({
         }}
       >
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={onRequestEnd}
-            id="request-end-btn"
-            className="btn-ghost"
-            style={{ padding: '8px 14px', fontSize: '0.84rem' }}
-            title="Request mutual early conclusion of the debate"
-          >
-            <Handshake size={14} />
-            Request end
-          </button>
+          {isOffline ? (
+            <button
+              type="button"
+              onClick={() => { playClick(); onRequestEnd(); }}
+              id="end-debate-btn"
+              className="btn-ghost"
+              style={{ padding: '8px 14px', fontSize: '0.84rem', borderColor: 'var(--line-strong)' }}
+              title="End the debate instantly and proceed to adjudication"
+            >
+              <Gavel size={14} />
+              End debate
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { playClick(); onRequestEnd(); }}
+              id="request-end-btn"
+              className="btn-ghost"
+              style={{ padding: '8px 14px', fontSize: '0.84rem' }}
+              title="Request mutual early conclusion of the debate"
+            >
+              <Handshake size={14} />
+              Request end
+            </button>
+          )}
 
           {/* Concede Button with Confirmation Step & Subtle Muted Danger Outline */}
           {!isConfirmingConcede ? (
             <button
               type="button"
-              onClick={() => setIsConfirmingConcede(true)}
+              onClick={() => { playClick(); setIsConfirmingConcede(true); }}
               id="concede-btn"
               className="btn-ghost"
               style={{
@@ -520,7 +538,7 @@ export default function SpeakingDispatch({
                 borderColor: 'var(--against-line)',
                 background: 'var(--against-bg-subtle)'
               }}
-              title="Concede this turn or the motion"
+              title="Concede this debate"
             >
               <Flag size={14} />
               Concede
@@ -541,11 +559,12 @@ export default function SpeakingDispatch({
               }}
             >
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--against)' }}>
-                Concede turn?
+                Concede debate?
               </span>
               <button
                 type="button"
                 onClick={() => {
+                  playClick();
                   setIsConfirmingConcede(false);
                   onConcede();
                 }}
@@ -557,21 +576,23 @@ export default function SpeakingDispatch({
                   padding: '4px 10px',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '0.78rem',
-                  fontWeight: 700
+                  fontWeight: 700,
+                  cursor: 'pointer'
                 }}
               >
                 Yes, concede
               </button>
               <button
                 type="button"
-                onClick={() => setIsConfirmingConcede(false)}
+                onClick={() => { playClick(); setIsConfirmingConcede(false); }}
                 id="cancel-concede-btn"
                 style={{
                   background: 'transparent',
                   color: 'var(--ink-muted)',
                   border: 'none',
                   padding: '4px 6px',
-                  fontSize: '0.78rem'
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
                 }}
               >
                 Cancel

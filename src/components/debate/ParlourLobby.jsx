@@ -10,12 +10,15 @@ import {
   Scale, 
   Sun, 
   Moon, 
-  ArrowRight,
-  ShieldAlert,
+  ArrowRight, 
   Sparkles,
   Wifi,
-  Laptop
+  Laptop,
+  Eye,
+  EyeOff,
+  Dices
 } from 'lucide-react';
+import { playClick } from '../../utils/soundEffects';
 
 export const CURATED_MOTIONS = [
   "Social media platforms should require government-verified identity before granting posting privileges.",
@@ -32,32 +35,54 @@ export const CURATED_MOTIONS = [
   "Professional sports leagues should permit genetic enhancement therapies under medical supervision."
 ];
 
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export const generateRandomRoomCode = () =>
+  Array.from({ length: 4 }, () => CODE_CHARS[(Math.random() * CODE_CHARS.length) | 0]).join("");
+
 export function ParlourLobby({
   initialMotion = CURATED_MOTIONS[0],
   initialRole = 'for',
   initialName = 'Alex',
-  initialRoomCode = 'HY7X',
+  initialRoomCode,
   theme = 'light',
   onToggleTheme,
   onEnterChamber
 }) {
-  const [mode, setMode] = useState('hotseat'); // 'hotseat' | 'online'
+  const [mode, setMode] = useState('offline'); // 'offline' | 'online' | 'jury'
   const [motionText, setMotionText] = useState(initialMotion);
   const [isEditingMotion, setIsEditingMotion] = useState(false);
   const [customMotionText, setCustomMotionText] = useState(initialMotion);
-  const [selectedRole, setSelectedRole] = useState(initialRole); // 'for' | 'against' | 'judge'
+  
+  // Offline chamber dual player names
+  const [nameFor, setNameFor] = useState('Alex');
+  const [nameAgainst, setNameAgainst] = useState('Sam');
+  
+  // Online chamber single player identity & bench
   const [speakerName, setSpeakerName] = useState(initialName);
-  const [timeMinutes, setTimeMinutes] = useState(5); // 3 | 5 | 7 minutes
-  const [roomCode, setRoomCode] = useState(initialRoomCode);
+  const [selectedRole, setSelectedRole] = useState(initialRole); // 'for' | 'against' | 'random'
+  
+  // Clocks: 10, 20, 30 minutes
+  const [timeMinutes, setTimeMinutes] = useState(10);
+  
+  // Random room code & hide toggle
+  const [roomCode, setRoomCode] = useState(() => initialRoomCode || generateRandomRoomCode());
+  const [hideRoomCode, setHideRoomCode] = useState(false);
 
   const handleSurpriseMotion = () => {
+    playClick();
     const remaining = CURATED_MOTIONS.filter((m) => m !== motionText);
     const random = remaining[Math.floor(Math.random() * remaining.length)];
     setMotionText(random);
     setCustomMotionText(random);
   };
 
+  const handleRegenerateCode = () => {
+    playClick();
+    setRoomCode(generateRandomRoomCode());
+  };
+
   const handleSaveCustomMotion = () => {
+    playClick();
     if (customMotionText.trim()) {
       setMotionText(customMotionText.trim().slice(0, 300));
     }
@@ -66,13 +91,27 @@ export function ParlourLobby({
 
   const handleStart = (e) => {
     e?.preventDefault();
+    playClick();
+    
+    let resolvedRole = selectedRole;
+    if (mode === 'online' && selectedRole === 'random') {
+      resolvedRole = Math.random() < 0.5 ? 'for' : 'against';
+    } else if (mode === 'jury') {
+      resolvedRole = 'judge';
+    } else if (mode === 'offline') {
+      resolvedRole = 'for';
+    }
+
     onEnterChamber({
       mode,
       motion: motionText,
-      role: selectedRole,
-      name: speakerName.trim() || (selectedRole === 'for' ? 'Alex' : 'Sam'),
+      role: resolvedRole,
+      name: mode === 'offline' ? nameFor : (speakerName.trim() || 'Alex'),
+      nameFor: nameFor.trim() || 'Alex',
+      nameAgainst: nameAgainst.trim() || 'Sam',
       remainingSeconds: timeMinutes * 60,
-      roomCode: roomCode.trim().toUpperCase() || 'HY7X'
+      roomCode: (roomCode.trim() || generateRandomRoomCode()).toUpperCase(),
+      hideRoomCode
     });
   };
 
@@ -126,7 +165,7 @@ export function ParlourLobby({
             lineHeight: 1.45
           }}
         >
-          A competitive timed parliamentary debate game judged objectively by Google Gemini AI.
+          A competitive timed parliamentary debate game
         </p>
       </header>
 
@@ -146,31 +185,32 @@ export function ParlourLobby({
           gap: '24px'
         }}
       >
-        {/* Mode Selector */}
+        {/* Mode Selector: 3 Distinct Chamber Modes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
             CHAMBER MODE
           </label>
           <div
             style={{
-              display: 'inline-flex',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '6px',
               background: 'var(--ground)',
-              padding: '3px',
+              padding: '4px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--line)'
             }}
           >
             <button
               type="button"
-              onClick={() => setMode('hotseat')}
+              onClick={() => { playClick(); setMode('offline'); }}
               style={{
-                flex: 1,
-                padding: '9px 16px',
-                fontSize: '0.88rem',
+                padding: '9px 14px',
+                fontSize: '0.86rem',
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
-                background: mode === 'hotseat' ? 'var(--ink)' : 'transparent',
-                color: mode === 'hotseat' ? 'var(--ground)' : 'var(--ink-secondary)',
+                background: mode === 'offline' ? 'var(--ink)' : 'transparent',
+                color: mode === 'offline' ? 'var(--ground)' : 'var(--ink-secondary)',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -180,15 +220,14 @@ export function ParlourLobby({
               }}
             >
               <Laptop size={15} />
-              Single Device (Pass &amp; Play)
+              Offline chamber
             </button>
             <button
               type="button"
-              onClick={() => setMode('online')}
+              onClick={() => { playClick(); setMode('online'); }}
               style={{
-                flex: 1,
-                padding: '9px 16px',
-                fontSize: '0.88rem',
+                padding: '9px 14px',
+                fontSize: '0.86rem',
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
                 background: mode === 'online' ? 'var(--ink)' : 'transparent',
@@ -202,7 +241,28 @@ export function ParlourLobby({
               }}
             >
               <Wifi size={15} />
-              Online Chamber (Multi-Tab Sync)
+              Online chamber
+            </button>
+            <button
+              type="button"
+              onClick={() => { playClick(); setMode('jury'); }}
+              style={{
+                padding: '9px 14px',
+                fontSize: '0.86rem',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                background: mode === 'jury' ? 'var(--ink)' : 'transparent',
+                color: mode === 'jury' ? 'var(--ground)' : 'var(--ink-secondary)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <Scale size={15} />
+              Crowd Jury
             </button>
           </div>
         </div>
@@ -246,7 +306,7 @@ export function ParlourLobby({
               </button>
               <button
                 type="button"
-                onClick={() => setIsEditingMotion(!isEditingMotion)}
+                onClick={() => { playClick(); setIsEditingMotion(!isEditingMotion); }}
                 className="btn-ghost"
                 style={{ padding: '4px 10px', fontSize: '0.78rem' }}
                 title="Write a custom debate motion"
@@ -309,106 +369,195 @@ export function ParlourLobby({
           </div>
         </div>
 
-        {/* Identity & Side Selection Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
-          {/* Name Field */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label htmlFor="speaker-name-input" className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
-              YOUR SPEAKER NAME
-            </label>
-            <input
-              type="text"
-              id="speaker-name-input"
-              value={speakerName}
-              onChange={(e) => setSpeakerName(e.target.value.slice(0, 24))}
-              placeholder="e.g. Alex"
-              style={{
-                padding: '11px 14px',
-                fontSize: '1rem',
-                fontFamily: 'Newsreader, Georgia, serif',
-                background: 'var(--ground)',
-                color: 'var(--ink)',
-                border: '1px solid var(--line-strong)',
-                borderRadius: 'var(--radius-md)',
-                outline: 'none'
-              }}
-            />
-          </div>
-
-          {/* Stance Pill Selection */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
-              YOUR BENCH / STANCE
-            </label>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedRole('for')}
+        {/* Identity & Stance Grid: Adaptive based on Chamber Mode */}
+        {mode === 'offline' ? (
+          /* Offline Chamber: Dual Speaker Names */
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label htmlFor="name-for-input" className="eyebrow" style={{ color: 'var(--for)' }}>
+                PROPOSITION SPEAKER (FOR)
+              </label>
+              <input
+                type="text"
+                id="name-for-input"
+                value={nameFor}
+                onChange={(e) => setNameFor(e.target.value.slice(0, 24))}
+                placeholder="e.g. Alex"
                 style={{
-                  flex: 1,
-                  padding: '9px 10px',
+                  padding: '11px 14px',
+                  fontSize: '1rem',
+                  fontFamily: 'Newsreader, Georgia, serif',
+                  background: 'var(--ground)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--for-line)',
                   borderRadius: 'var(--radius-md)',
-                  border: `1px solid ${selectedRole === 'for' ? 'var(--for)' : 'var(--line)'}`,
-                  background: selectedRole === 'for' ? 'var(--for-bg)' : 'transparent',
-                  color: selectedRole === 'for' ? 'var(--for-strong)' : 'var(--ink-secondary)',
-                  fontWeight: selectedRole === 'for' ? 700 : 500,
-                  fontSize: '0.84rem',
-                  cursor: 'pointer'
+                  outline: 'none'
                 }}
-              >
-                Proposition
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedRole('against')}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label htmlFor="name-against-input" className="eyebrow" style={{ color: 'var(--against)' }}>
+                OPPOSITION SPEAKER (AGAINST)
+              </label>
+              <input
+                type="text"
+                id="name-against-input"
+                value={nameAgainst}
+                onChange={(e) => setNameAgainst(e.target.value.slice(0, 24))}
+                placeholder="e.g. Sam"
                 style={{
-                  flex: 1,
-                  padding: '9px 10px',
+                  padding: '11px 14px',
+                  fontSize: '1rem',
+                  fontFamily: 'Newsreader, Georgia, serif',
+                  background: 'var(--ground)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--against-line)',
                   borderRadius: 'var(--radius-md)',
-                  border: `1px solid ${selectedRole === 'against' ? 'var(--against)' : 'var(--line)'}`,
-                  background: selectedRole === 'against' ? 'var(--against-bg)' : 'transparent',
-                  color: selectedRole === 'against' ? 'var(--against-strong)' : 'var(--ink-secondary)',
-                  fontWeight: selectedRole === 'against' ? 700 : 500,
-                  fontSize: '0.84rem',
-                  cursor: 'pointer'
+                  outline: 'none'
                 }}
-              >
-                Opposition
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedRole('judge')}
-                style={{
-                  flex: 1,
-                  padding: '9px 10px',
-                  borderRadius: 'var(--radius-md)',
-                  border: `1px solid ${selectedRole === 'judge' ? 'var(--brass)' : 'var(--line)'}`,
-                  background: selectedRole === 'judge' ? 'var(--brass-subtle)' : 'transparent',
-                  color: selectedRole === 'judge' ? 'var(--brass)' : 'var(--ink-secondary)',
-                  fontWeight: selectedRole === 'judge' ? 700 : 500,
-                  fontSize: '0.84rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Crowd Jury
-              </button>
+              />
             </div>
           </div>
-        </div>
+        ) : mode === 'online' ? (
+          /* Online Chamber: Speaker Name & Bench Selection (Proposition, Opposition, Random) */
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label htmlFor="speaker-name-input" className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
+                YOUR SPEAKER NAME
+              </label>
+              <input
+                type="text"
+                id="speaker-name-input"
+                value={speakerName}
+                onChange={(e) => setSpeakerName(e.target.value.slice(0, 24))}
+                placeholder="e.g. Alex"
+                style={{
+                  padding: '11px 14px',
+                  fontSize: '1rem',
+                  fontFamily: 'Newsreader, Georgia, serif',
+                  background: 'var(--ground)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--line-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  outline: 'none'
+                }}
+              />
+            </div>
 
-        {/* Chess Clock Time Selection & Room Code */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
+                YOUR BENCH / STANCE
+              </label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => { playClick(); setSelectedRole('for'); }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `1px solid ${selectedRole === 'for' ? 'var(--for)' : 'var(--line)'}`,
+                    background: selectedRole === 'for' ? 'var(--for-bg)' : 'transparent',
+                    color: selectedRole === 'for' ? 'var(--for-strong)' : 'var(--ink-secondary)',
+                    fontWeight: selectedRole === 'for' ? 700 : 500,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Proposition
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { playClick(); setSelectedRole('against'); }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `1px solid ${selectedRole === 'against' ? 'var(--against)' : 'var(--line)'}`,
+                    background: selectedRole === 'against' ? 'var(--against-bg)' : 'transparent',
+                    color: selectedRole === 'against' ? 'var(--against-strong)' : 'var(--ink-secondary)',
+                    fontWeight: selectedRole === 'against' ? 700 : 500,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Opposition
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { playClick(); setSelectedRole('random'); }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `1px solid ${selectedRole === 'random' ? 'var(--brass)' : 'var(--line)'}`,
+                    background: selectedRole === 'random' ? 'var(--brass-subtle)' : 'transparent',
+                    color: selectedRole === 'random' ? 'var(--brass)' : 'var(--ink-secondary)',
+                    fontWeight: selectedRole === 'random' ? 700 : 500,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Dices size={13} />
+                  Random
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Crowd Jury Mode */
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label htmlFor="speaker-name-input" className="eyebrow" style={{ color: 'var(--brass)' }}>
+                YOUR JUROR NAME
+              </label>
+              <input
+                type="text"
+                id="speaker-name-input"
+                value={speakerName}
+                onChange={(e) => setSpeakerName(e.target.value.slice(0, 24))}
+                placeholder="e.g. Juror 1"
+                style={{
+                  padding: '11px 14px',
+                  fontSize: '1rem',
+                  fontFamily: 'Newsreader, Georgia, serif',
+                  background: 'var(--ground)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--brass-line)',
+                  borderRadius: 'var(--radius-md)',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
+              <span className="eyebrow" style={{ color: 'var(--ink-muted)' }}>
+                CHAMBER SEAT
+              </span>
+              <div style={{ fontSize: '0.88rem', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Scale size={15} color="var(--brass)" />
+                <span>Spectator Jury • Independent Adjudication Ballot</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chess Clock Time Selection (10 / 20 / 30 min) & Room Code */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
-          {/* Time Duration */}
+          {/* Time Duration: 10 / 20 / 30 min */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
               CHESS CLOCK PER SIDE
             </label>
             <div style={{ display: 'flex', gap: '6px' }}>
-              {[3, 5, 7].map((mins) => (
+              {[10, 20, 30].map((mins) => (
                 <button
                   key={mins}
                   type="button"
-                  onClick={() => setTimeMinutes(mins)}
+                  onClick={() => { playClick(); setTimeMinutes(mins); }}
                   style={{
                     flex: 1,
                     padding: '8px 12px',
@@ -427,18 +576,43 @@ export function ParlourLobby({
             </div>
           </div>
 
-          {/* Room Code (if online) */}
-          {mode === 'online' ? (
+          {/* Room Code: Only shown in Online or Crowd Jury modes */}
+          {mode !== 'offline' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label htmlFor="room-code-input" className="eyebrow" style={{ color: 'var(--brass)' }}>
-                ONLINE ROOM CODE
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label htmlFor="room-code-input" className="eyebrow" style={{ color: 'var(--brass)' }}>
+                  ROOM CODE
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { playClick(); setHideRoomCode(!hideRoomCode); }}
+                    className="btn-ghost"
+                    style={{ padding: '2px 6px', fontSize: '0.74rem' }}
+                    title={hideRoomCode ? 'Show room code' : 'Hide room code'}
+                  >
+                    {hideRoomCode ? <Eye size={13} /> : <EyeOff size={13} />}
+                    <span style={{ marginLeft: '4px' }}>{hideRoomCode ? 'Show' : 'Hide'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCode}
+                    className="btn-ghost"
+                    style={{ padding: '2px 6px', fontSize: '0.74rem' }}
+                    title="Generate a new random room code"
+                  >
+                    <Shuffle size={12} />
+                    <span style={{ marginLeft: '4px' }}>Random</span>
+                  </button>
+                </div>
+              </div>
+
               <input
-                type="text"
+                type={hideRoomCode ? 'password' : 'text'}
                 id="room-code-input"
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 8))}
-                placeholder="HY7X"
+                placeholder="W7KP"
                 style={{
                   padding: '11px 14px',
                   fontSize: '1.05rem',
@@ -460,7 +634,7 @@ export function ParlourLobby({
               </span>
               <div style={{ fontSize: '0.88rem', color: 'var(--ink-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Sparkles size={14} color="var(--brass)" />
-                Google Gemini 3.5 Flash Adjudicator
+                AI Adjudicator
               </div>
             </div>
           )}

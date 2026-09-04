@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   Users, 
@@ -7,10 +7,12 @@ import {
   Moon, 
   Copy, 
   Check, 
-  ShieldCheck, 
+  Eye,
+  EyeOff,
   Clock, 
   Sparkles 
 } from 'lucide-react';
+import { playClick } from '../../utils/soundEffects';
 
 export function DebateHeader({ 
   roomCode = 'HY7X',
@@ -19,22 +21,38 @@ export function DebateHeader({
   theme = 'light',
   onToggleTheme,
   onReturnLobby,
-  gameMode = 'hotseat', // 'hotseat' | 'online'
+  gameMode = 'offline', // 'offline' | 'online' | 'jury' | 'hotseat'
   judgeMode = 'ai',     // 'ai' | 'crowd'
   judgeCount = 0,
   participantCount = 1,
-  initialSeconds = 300
+  initialSeconds = 600,
+  initialHideCode = false
 }) {
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isCodeHidden, setIsCodeHidden] = useState(initialHideCode);
 
+  const isOffline = gameMode === 'offline' || gameMode === 'hotseat';
   const clockMins = Math.floor(initialSeconds / 60);
   const clockSecs = initialSeconds % 60;
   const formattedTime = `${clockMins}:${clockSecs < 10 ? '0' : ''}${clockSecs} A SIDE`;
 
   const handleCopyCode = () => {
+    playClick();
     navigator.clipboard?.writeText(roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleCodeVisibility = (e) => {
+    e.stopPropagation();
+    playClick();
+    setIsCodeHidden(!isCodeHidden);
+  };
+
+  const getModeEyebrow = () => {
+    if (isOffline) return 'CHAMBER DEBATE • OFFLINE CHAMBER';
+    if (gameMode === 'jury') return 'CHAMBER DEBATE • CROWD JURY';
+    return 'CHAMBER DEBATE • ONLINE CHAMBER';
   };
 
   return (
@@ -76,16 +94,16 @@ export function DebateHeader({
               POINT OF ORDER
             </div>
             <div className="eyebrow" style={{ fontSize: '0.66rem', letterSpacing: '0.1em' }}>
-              {gameMode === 'hotseat' ? 'CHAMBER DEBATE • PASS & PLAY (SOLO)' : 'CHAMBER DEBATE • ONLINE ROOM'}
+              {getModeEyebrow()}
             </div>
           </div>
         </div>
 
-        {/* Right: Room & Status Badges */}
+        {/* Right: Actions, Room Code (online only), Theme Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {onReturnLobby && (
             <button
-              onClick={onReturnLobby}
+              onClick={() => { playClick(); onReturnLobby(); }}
               id="return-lobby-header-btn"
               className="btn-ghost"
               style={{ padding: '6px 12px', fontSize: '0.8rem' }}
@@ -95,47 +113,61 @@ export function DebateHeader({
             </button>
           )}
 
-          {/* Room Code Badge */}
-          <button
-            onClick={handleCopyCode}
-            id="copy-room-code-btn"
-            style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--line-strong)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '6px 12px',
-              fontSize: '0.8rem',
-              color: 'var(--ink)',
-              cursor: 'pointer'
-            }}
-            title="Click to copy invite code"
-          >
-            <span className="eyebrow" style={{ color: 'var(--ink-muted)', marginRight: '6px' }}>ROOM</span>
-            <strong className="font-mono" style={{ color: 'var(--brass)', fontSize: '0.9rem', marginRight: '6px' }}>
-              {roomCode}
-            </strong>
-            {copied ? <Check size={14} color="var(--for)" /> : <Copy size={13} color="var(--ink-muted)" />}
-          </button>
-
-          {/* Adjudicator / Mode Badge based on ACTUAL state */}
-          {gameMode === 'hotseat' ? (
+          {/* Room Code Badge: ONLY rendered in Online / Jury chambers, NOT in offline split-screen! */}
+          {!isOffline && (
             <div
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
                 background: 'var(--surface)',
-                border: '1px solid var(--brass-line)',
-                fontSize: '0.8rem',
-                color: 'var(--ink)'
+                border: '1px solid var(--line-strong)',
+                borderRadius: 'var(--radius-sm)',
+                overflow: 'hidden'
               }}
             >
-              <Sparkles size={14} color="var(--brass)" />
-              <span style={{ fontWeight: 600 }}>Gemini AI Adjudicator</span>
+              <button
+                onClick={handleCopyCode}
+                id="copy-room-code-btn"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '6px 10px',
+                  fontSize: '0.8rem',
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Click to copy invite code"
+              >
+                <span className="eyebrow" style={{ color: 'var(--ink-muted)', marginRight: '6px' }}>ROOM</span>
+                <strong className="font-mono" style={{ color: 'var(--brass)', fontSize: '0.9rem', marginRight: '6px' }}>
+                  {isCodeHidden ? '••••' : roomCode}
+                </strong>
+                {copied ? <Check size={14} color="var(--for)" /> : <Copy size={13} color="var(--ink-muted)" />}
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleCodeVisibility}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderLeft: '1px solid var(--line)',
+                  padding: '6px 8px',
+                  color: 'var(--ink-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={isCodeHidden ? 'Show room code' : 'Hide room code'}
+              >
+                {isCodeHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* Online Connected Participants (Only in online mode) */}
+          {!isOffline && (
             <div
               style={{
                 display: 'flex',
@@ -167,7 +199,7 @@ export function DebateHeader({
 
           {/* Theme Switcher */}
           <button
-            onClick={onToggleTheme}
+            onClick={() => { playClick(); onToggleTheme(); }}
             id="theme-toggle-btn"
             style={{
               width: '36px',

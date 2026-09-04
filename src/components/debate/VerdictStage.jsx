@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react';
 import DebateHeader from './DebateHeader';
+import { playGavel, playClick } from '../../utils/soundEffects';
 
 const DEFAULT_TRANSCRIPT = [];
 
@@ -40,6 +41,10 @@ export default function VerdictStage({
   const [copied, setCopied] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [expandedPoints, setExpandedPoints] = useState({ 'prop-0': true, 'opp-0': true, 'prop-1': true, 'opp-1': true });
+
+  useEffect(() => {
+    playGavel();
+  }, []);
 
   const winner = verdict?.winner || 'for';
   const isForWinner = winner === 'for';
@@ -78,14 +83,16 @@ export default function VerdictStage({
   ];
 
   const judgeBallots = verdict?.individualScores || [
-    { judgeLabel: "AI Adjudicator (Gemini)", scoreFor: scoreFor, scoreAgainst: scoreAgainst, remarks: winnerRationale }
+    { judgeLabel: "AI Adjudicator", scoreFor: scoreFor, scoreAgainst: scoreAgainst, remarks: winnerRationale }
   ];
 
   const togglePoint = (id) => {
+    playClick();
     setExpandedPoints((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleCopyVerdict = () => {
+    playClick();
     const summary = `POINT OF ORDER VERDICT\nMotion: "${motionText}"\nWinner: ${winner === 'draw' ? 'Draw' : (isForWinner ? `${nameFor} (Proposition)` : `${nameAgainst} (Opposition)`)}\nScore: ${nameFor} ${scoreFor} vs ${nameAgainst} ${scoreAgainst}\n\nRationale:\n${winnerRationale}`;
     navigator.clipboard?.writeText(summary);
     setCopied(true);
@@ -187,7 +194,7 @@ export default function VerdictStage({
 
         <div>
           <div className="eyebrow" style={{ color: isForWinner ? 'var(--for)' : (isDraw ? 'var(--brass)' : 'var(--against)'), letterSpacing: '0.16em', marginBottom: '6px' }}>
-            PARLIAMENTARY ADJUDICATION • GEMINI 3.5 FLASH &amp; JURY
+            PARLIAMENTARY ADJUDICATION • AI ADJUDICATOR &amp; JURY
           </div>
           <h2
             style={{

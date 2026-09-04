@@ -12,8 +12,8 @@ function formatSeconds(secs) {
 export function ChessClocks({
   nameFor = 'Alex',
   nameAgainst = 'Sam',
-  remainingFor = 300, // in seconds (5:00)
-  remainingAgainst = 300,
+  remainingFor = 600, // in seconds (10:00)
+  remainingAgainst = 600,
   activeSpeaker = 'for', // 'for' | 'against' | null
   turnNo = 1,
   prepUntil = null,

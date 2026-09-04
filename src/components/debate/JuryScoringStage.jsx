@@ -12,9 +12,11 @@ import {
   MessageSquare,
   ShieldCheck,
   BookOpen,
-  X
+  X,
+  HelpCircle
 } from 'lucide-react';
 import DebateHeader from './DebateHeader';
+import { playClick } from '../../utils/soundEffects';
 import DeliberationLoadingScreen from './DeliberationLoadingScreen';
 
 const DEFAULT_TRANSCRIPT = [];
@@ -100,8 +102,8 @@ export function JuryScoringStage({
         onSubmitJudgement(verdict);
       }
     } catch (err) {
-      console.error("Gemini adjudication error:", err);
-      setAdjudicateError(err.message || "Failed to contact Gemini Adjudicator.");
+      console.error("AI adjudication error:", err);
+      setAdjudicateError(err.message || "Failed to contact AI Adjudicator.");
     } finally {
       setIsAdjudicating(false);
     }
@@ -620,9 +622,9 @@ export function JuryScoringStage({
             <>
               <button
                 type="button"
-                onClick={handleTriggerGeminiAdjudication}
+                onClick={() => { playClick(); handleTriggerGeminiAdjudication(); }}
                 disabled={isAdjudicating}
-                id="trigger-gemini-btn"
+                id="trigger-ai-adjudicator-btn"
                 className="btn-ghost"
                 style={{
                   padding: '11px 20px',
@@ -638,7 +640,7 @@ export function JuryScoringStage({
                 }}
               >
                 <Sparkles size={16} color="var(--brass)" />
-                {isAdjudicating ? 'Adjudicating With Gemini 3.5 Flash…' : '🤖 Adjudicate with Gemini'}
+                {isAdjudicating ? 'Adjudicating Chamber Record…' : '⚡ AI Adjudicator'}
               </button>
 
               <button

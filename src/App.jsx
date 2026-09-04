@@ -71,8 +71,11 @@ export default function App() {
     }
   });
 
-  const [gameMode, setGameMode] = useState('hotseat'); // 'hotseat' | 'online'
-  const [initialSeconds, setInitialSeconds] = useState(300); // 300s = 5 min
+  const [gameMode, setGameMode] = useState('offline'); // 'offline' | 'online' | 'jury'
+  const [initialSeconds, setInitialSeconds] = useState(600); // 600s = 10 min
+  const [nameFor, setNameFor] = useState('Alex');
+  const [nameAgainst, setNameAgainst] = useState('Sam');
+  const [hideRoomCode, setHideRoomCode] = useState(false);
 
   const [verdict, setVerdict] = useState(null);
   const [devOverlayCollapsed, setDevOverlayCollapsed] = useState(false);
@@ -125,14 +128,27 @@ export default function App() {
     roomSync.broadcastPhase(nextPhase);
   };
 
-  const handleEnterChamberFromLobby = ({ motion, role, name, roomCode: chosenCode, mode: chosenMode, remainingSeconds }) => {
+  const handleEnterChamberFromLobby = ({
+    motion,
+    role,
+    name,
+    nameFor: chosenNameFor,
+    nameAgainst: chosenNameAgainst,
+    roomCode: chosenCode,
+    mode: chosenMode,
+    remainingSeconds,
+    hideRoomCode: chosenHideCode
+  }) => {
     setMotionText(motion);
     setUserRole(role);
     setUserName(name);
+    if (chosenNameFor) setNameFor(chosenNameFor);
+    if (chosenNameAgainst) setNameAgainst(chosenNameAgainst);
     setRoomCode(chosenCode);
-    const mode = chosenMode || 'hotseat';
+    setHideRoomCode(!!chosenHideCode);
+    const mode = chosenMode || 'offline';
     setGameMode(mode);
-    const secs = remainingSeconds || 300;
+    const secs = remainingSeconds || 600;
     setInitialSeconds(secs);
 
     // Clean slate: Turn 1, Proposition holds opening floor, clocks full, transcript empty
@@ -425,10 +441,13 @@ export default function App() {
           onReturnLobby={() => setPhase('lobby')}
           userRole={userRole}
           userName={userName}
+          nameFor={nameFor}
+          nameAgainst={nameAgainst}
           roomCode={roomCode}
           roomSync={roomSync}
           gameMode={gameMode}
           initialSeconds={initialSeconds}
+          initialHideCode={hideRoomCode}
           onConcedeVerdict={handleSubmitJudgement}
         />
       )}
@@ -436,8 +455,8 @@ export default function App() {
       {phase === 'scoring' && (
         <JuryScoringStage
           motionText={motionText}
-          nameFor="Alex"
-          nameAgainst="Sam"
+          nameFor={nameFor}
+          nameAgainst={nameAgainst}
           roomCode={roomCode}
           theme={theme}
           onToggleTheme={handleToggleTheme}
@@ -451,8 +470,8 @@ export default function App() {
       {phase === 'verdict' && (
         <VerdictStage
           motionText={motionText}
-          nameFor="Alex"
-          nameAgainst="Sam"
+          nameFor={nameFor}
+          nameAgainst={nameAgainst}
           roomCode={roomCode}
           theme={theme}
           onToggleTheme={handleToggleTheme}
