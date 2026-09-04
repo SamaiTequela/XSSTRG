@@ -209,24 +209,120 @@ export default function App() {
     }
   }, [roomSync.serverView]);
 
-  // Sync remote phase changes — ONLY in online modes.
+  // Browser History & Page Navigation Sync
+  const transitionToPhase = useCallback((nextPhase, replace = false) => {
+    setPhase(nextPhase);
+    try {
+      const url = new URL(window.location.href);
+      if (nextPhase === 'lobby') {
+        url.searchParams.delete('phase');
+        if (gameMode === 'offline') url.searchParams.delete('room');
+      } else {
+        url.searchParams.set('phase', nextPhase);
+      }
+      if (replace) {
+        window.history.replaceState({ phase: nextPhase, gameMode, roomCode }, '', url.toString());
+      } else {
+        window.history.pushState({ phase: nextPhase, gameMode, roomCode }, '', url.toString());
+      }
+    } catch {}
+  }, [gameMode, roomCode]);
+
+  // Listen to browser Back and Forward navigation buttons
   useEffect(() => {
-    if (!isOnlineMode) return;
+    // Initialize history state on mount
+    try {
+      const currentUrl = new URL(window.location.href);
+      const urlPhase = currentUrl.searchParams.get('phase');
+      const validPhases = ['lobby', 'room_lobby', 'transition', 'debate', 'scoring', 'verdict'];
+      const initialPhase = validPhases.includes(urlPhase) ? urlPhase : 'lobby';
+      window.history.replaceState({ phase: initialPhase, gameMode, roomCode }, '', currentUrl.toString());
+    } catch {}
+
+    const handlePopState = (event) => {
+      const state = event.state;
+      if (state && state.phase) {
+        setPhase(state.phase);
+        if (state.gameMode) setGameMode(state.gameMode);
+        if (state.roomCode) setRoomCode(state.roomCode);
+      } else {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const p = params.get('phase');
+          if (p && ['lobby', 'room_lobby', 'transition', 'debate', 'scoring', 'verdict'].includes(p)) {
+            setPhase(p);
+          } else {
+            setPhase('lobby');
+          }
+        } catch {
+          setPhase('lobby');
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [gameMode, roomCode]);
+
+  // Clean exit from any chamber to Parlour Lobby
+  const handleLeaveChamber = useCallback(async () => {
+    try {
+      if (roomSync?.leaveChamber) {
+        await roomSync.leaveChamber();
+      }
+    } catch {}
+    setVerdict(null);
+    setRoomCode('');
+    setGameMode('offline');
+    transitionToPhase('lobby');
+  }, [roomSync, transitionToPhase]);
+
+  // Rematch handler across online and offline modes
+  const handleRematch = useCallback(async () => {
+    setVerdict(null);
+    if (isOnlineMode && roomCode) {
+      try {
+        if (roomSync?.broadcastRematch) {
+          await roomSync.broadcastRematch();
+        }
+      } catch {}
+      transitionToPhase('room_lobby');
+    } else {
+      // Offline rematch: swap seats
+      const prevFor = nameFor;
+      const prevAgainst = nameAgainst;
+      setNameFor(prevAgainst);
+      setNameAgainst(prevFor);
+      roomSync.resetDebateState?.({
+        remainingFor: initialSeconds,
+        remainingAgainst: initialSeconds,
+        turnNo: 1,
+        activeSpeaker: 'for',
+        prepSeconds: 0,
+        transcript: []
+      });
+      transitionToPhase('transition');
+    }
+  }, [isOnlineMode, roomCode, roomSync, nameFor, nameAgainst, initialSeconds, transitionToPhase]);
+
+  // Sync remote phase changes — ONLY in active online rooms.
+  useEffect(() => {
+    if (!isOnlineMode || !roomCode || phase === 'lobby') return;
     const remotePhase = roomSync.roomState?.phase;
     if (!remotePhase) return; // null = not yet initialised, ignore
     if (remotePhase !== phase) {
       if (remotePhase === 'debate' && (phase === 'room_lobby' || phase === 'lobby')) {
-        setPhase('transition');
+        transitionToPhase('transition');
       } else if (remotePhase === 'verdict') {
-        setPhase('verdict');
+        transitionToPhase('verdict');
       } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
-        setPhase('room_lobby');
+        transitionToPhase('room_lobby');
       }
     }
     if (roomSync.roomState?.verdict) {
       setVerdict(roomSync.roomState.verdict);
     }
-  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode]);
+  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode, roomCode, transitionToPhase]);
 
   const handlePhaseChange = (nextPhase) => {
     setPhase(nextPhase);
@@ -268,7 +364,7 @@ export default function App() {
         prepSeconds: 0,
         transcript: []
       });
-      setPhase('transition');
+      transitionToPhase('transition');
     } else {
       // Online Chamber or Crowd Jury: Create or Join backend room and enter waiting lobby
       try {
@@ -314,18 +410,18 @@ export default function App() {
         console.warn('Room enter API call warning:', err);
       }
 
-      setPhase('room_lobby');
+      transitionToPhase('room_lobby');
     }
   };
 
   // Automated AI Adjudication Deliberation
   const handleTriggerAdjudication = useCallback(async () => {
     if (gameMode === 'crowd_jury') {
-      setPhase('scoring');
+      transitionToPhase('scoring');
       return;
     }
 
-    setPhase('deliberating');
+    transitionToPhase('deliberating');
     setIsAdjudicating(true);
 
     try {
@@ -381,11 +477,11 @@ export default function App() {
     } finally {
       setIsAdjudicating(false);
     }
-  }, [gameMode, roomSync.roomState.transcript, motionText, nameFor, nameAgainst]);
+  }, [gameMode, roomSync.roomState.transcript, motionText, nameFor, nameAgainst, transitionToPhase]);
 
   const handleSubmitJudgement = (judgementVerdict) => {
     setVerdict(judgementVerdict);
-    setPhase('verdict');
+    transitionToPhase('verdict');
     try {
       playGavel();
     } catch {}
@@ -531,8 +627,8 @@ export default function App() {
           userName={userName}
           userRole={userRole}
           roomSync={roomSync}
-          onLaunchDebate={() => setPhase('transition')}
-          onLeaveChamber={() => setPhase('lobby')}
+          onLaunchDebate={() => transitionToPhase('transition')}
+          onLeaveChamber={handleLeaveChamber}
           onRoleChange={(newRole) => setUserRole(newRole)}
         />
       )}
@@ -544,7 +640,7 @@ export default function App() {
           nameAgainst={nameAgainst}
           initialSeconds={initialSeconds}
           gameMode={gameMode}
-          onComplete={() => setPhase('debate')}
+          onComplete={() => transitionToPhase('debate')}
         />
       )}
 
@@ -554,7 +650,7 @@ export default function App() {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onTriggerDeliberation={handleTriggerAdjudication}
-          onReturnLobby={() => setPhase('lobby')}
+          onReturnLobby={handleLeaveChamber}
           userRole={userRole}
           userName={userName}
           nameFor={nameFor}
@@ -580,9 +676,9 @@ export default function App() {
           roomCode={roomCode}
           theme={theme}
           onToggleTheme={handleToggleTheme}
-          onBackToDebate={() => setPhase('debate')}
+          onBackToDebate={() => transitionToPhase('debate')}
           onSubmitJudgement={handleSubmitJudgement}
-          onReturnToMain={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
+          onReturnToMain={handleLeaveChamber}
           turns={roomSync.roomState.transcript || []}
           gameMode={gameMode}
         />
@@ -596,20 +692,9 @@ export default function App() {
           roomCode={roomCode}
           theme={theme}
           onToggleTheme={handleToggleTheme}
-          onNewDebate={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
-          onReturnToMain={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
-          onRematch={() => {
-            setVerdict(null);
-            roomSync.resetDebateState?.({
-              remainingFor: initialSeconds,
-              remainingAgainst: initialSeconds,
-              turnNo: 1,
-              activeSpeaker: 'for',
-              prepSeconds: 0,
-              transcript: []
-            });
-            setPhase('transition');
-          }}
+          onNewDebate={handleLeaveChamber}
+          onReturnToMain={handleLeaveChamber}
+          onRematch={handleRematch}
           turns={roomSync.roomState.transcript || []}
           verdict={verdict}
           gameMode={gameMode}

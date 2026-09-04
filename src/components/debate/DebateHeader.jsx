@@ -7,11 +7,13 @@ import {
   Moon, 
   Copy, 
   Check, 
-  Eye,
-  EyeOff,
+  Eye, 
+  EyeOff, 
   Clock, 
-  Sparkles,
-  Home
+  Sparkles, 
+  Home,
+  ArrowLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { playClick } from '../../utils/soundEffects';
 
@@ -32,6 +34,7 @@ export function DebateHeader({
 }) {
   const [copied, setCopied] = useState(false);
   const [isCodeHidden, setIsCodeHidden] = useState(initialHideCode);
+  const [showConfirmExit, setShowConfirmExit] = useState(false);
 
   const isOffline = gameMode === 'offline' || gameMode === 'hotseat';
   const clockMins = Math.floor(initialSeconds / 60);
@@ -188,29 +191,100 @@ export function DebateHeader({
             </div>
           )}
 
-          {/* Return to Main Menu button (verdict / scoring phases only) */}
-          {showReturnButton && onReturnLobby && (
+          {/* Return / Leave Chamber Button */}
+          {onReturnLobby && (
             <button
-              onClick={() => { try { playClick(); } catch {} onReturnLobby(); }}
+              onClick={() => {
+                try { playClick(); } catch {}
+                if (showReturnButton) {
+                  onReturnLobby();
+                } else {
+                  setShowConfirmExit(true);
+                }
+              }}
               id="header-return-main-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                background: 'transparent',
+                gap: '6px',
+                background: 'var(--chamber)',
                 border: '1px solid var(--line-strong)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '6px 12px',
-                color: 'var(--ink-secondary)',
+                color: 'var(--ink)',
                 fontSize: '0.8rem',
                 fontWeight: 600,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
-              title="Return to Main Menu"
+              title={showReturnButton ? "Return to Main Menu" : "Leave Chamber / Conclude Debate"}
             >
-              <Home size={13} />
-              Main Menu
+              {showReturnButton ? <Home size={14} /> : <ArrowLeft size={14} />}
+              <span>{showReturnButton ? "Main Menu" : "Leave Chamber"}</span>
             </button>
+          )}
+
+          {/* Leave Chamber Confirmation Modal */}
+          {showConfirmExit && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(4px)',
+                padding: '16px'
+              }}
+            >
+              <div
+                className="card-surface"
+                style={{
+                  maxWidth: '420px',
+                  width: '100%',
+                  padding: '24px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  border: '1px solid var(--line-strong)',
+                  boxShadow: 'var(--shadow-lg)'
+                }}
+              >
+                <div className="eyebrow" style={{ color: 'var(--against)' }}>
+                  LEAVE ACTIVE DEBATE?
+                </div>
+                <h3 style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.25rem', color: 'var(--ink)', margin: 0 }}>
+                  Conclude round and return to setup?
+                </h3>
+                <p style={{ fontSize: '0.92rem', color: 'var(--ink-secondary)', margin: 0, lineHeight: 1.5 }}>
+                  Leaving now will end your session in this chamber and return you to the parlour lobby.
+                </p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmExit(false)}
+                    className="btn-ghost"
+                    style={{ padding: '8px 16px', fontSize: '0.88rem' }}
+                  >
+                    Stay in Debate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConfirmExit(false);
+                      onReturnLobby();
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '8px 16px', fontSize: '0.88rem', background: 'var(--against)', color: '#ffffff' }}
+                  >
+                    Leave Chamber
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Theme Switcher */}

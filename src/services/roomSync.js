@@ -536,6 +536,44 @@ export function useRoomSync({
     });
   }, [dispatchMessage]);
 
+  // 12. Rematch Online Chamber
+  const broadcastRematch = useCallback(async () => {
+    if (isOnline && roomId) {
+      try {
+        const v = await sendRoomAction('rematch', roomId);
+        if (v) syncServerView(v);
+        return v;
+      } catch (err) {
+        console.warn('Online rematch error:', err);
+      }
+    }
+    return null;
+  }, [isOnline, roomId, syncServerView]);
+
+  // 13. Cleanly Leave Chamber
+  const leaveChamber = useCallback(async () => {
+    if (isOnline && roomId) {
+      try {
+        await sendRoomAction('leave', roomId);
+      } catch (err) {
+        console.warn('Leave chamber error:', err);
+      }
+    }
+    setServerView(null);
+    setRoomState({
+      phase: null,
+      activeSpeaker: 'for',
+      turnNo: 1,
+      remainingFor: 600,
+      remainingAgainst: 600,
+      prepSeconds: 0,
+      transcript: [],
+      verdict: null,
+      endRequest: null,
+      concededBy: null
+    });
+  }, [isOnline, roomId]);
+
   return {
     clientId: CLIENT_ID,
     participants,
@@ -551,6 +589,8 @@ export function useRoomSync({
     broadcastRequestEnd,
     broadcastRespondEnd,
     broadcastVerdict,
+    broadcastRematch,
+    leaveChamber,
     onlineParticipantCount: serverView ? (
       (serverView.seats?.for?.filled ? 1 : 0) +
       (serverView.seats?.against?.filled ? 1 : 0) +

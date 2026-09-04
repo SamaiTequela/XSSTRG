@@ -138,6 +138,9 @@ export function DebateStage({
         remainingAgainst
       }));
     }
+    if (isOffline) {
+      setHandoffOpen(true);
+    }
     setPrepSeconds(15);
   };
 
@@ -375,7 +378,7 @@ export function DebateStage({
       {/* Turn Handoff Modal (Single device hotseat fallback) */}
       <TurnHandoffModal
         isOpen={handoffOpen}
-        nextSpeaker={activeSpeaker === 'for' ? 'Alex' : 'Sam'}
+        nextSpeaker={activeSpeaker === 'for' ? nameFor : nameAgainst}
         side={activeSpeaker}
         remainingTime={activeSpeaker === 'for' ? remainingFor : remainingAgainst}
         onDismiss={() => setHandoffOpen(false)}

@@ -69,12 +69,18 @@ select,
 
 .debate-container {
   width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: clamp(14px, 2.5vw, 28px) clamp(16px, 3vw, 32px) clamp(40px, 6vw, 80px);
+  max-width: 100%;
+  margin: 0;
+  padding: clamp(12px, 1.8vw, 22px) clamp(16px, 2.8vw, 48px) clamp(30px, 4vw, 60px);
   display: flex;
   flex-direction: column;
-  gap: clamp(16px, 2.2vw, 24px);
+  gap: clamp(16px, 2vw, 24px);
+  min-width: 0;
+}
+
+.parlour-lobby-screen {
+  max-width: 920px !important;
+  margin: 0 auto !important;
 }
 
 .debate-stage-fullwidth {
@@ -89,7 +95,9 @@ select,
 .transcript-stream,
 .speaking-dispatch,
 .motion-banner,
-.chess-clock-arena {
+.chess-clock-arena,
+.verdict-screen,
+.jury-scoring-screen {
   min-width: 0;
 }
 
