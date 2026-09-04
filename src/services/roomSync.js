@@ -361,6 +361,19 @@ export function useRoomSync({
   }, [dispatchMessage]);
 
   // 5. Verdict Reveal
+  const broadcastVerdict = useCallback((verdict) => {
+    dispatchMessage(generalChannelRef.current, {
+      type: 'VERDICT_REVEAL',
+      payload: { verdict },
+      senderId: CLIENT_ID
+    });
+    setRoomState((prev) => ({
+      ...prev,
+      phase: 'verdict',
+      verdict
+    }));
+  }, [dispatchMessage]);
+
   // 6. Reset Debate State (for starting new clean room)
   const resetDebateState = useCallback((newState = {}) => {
     const fresh = {
