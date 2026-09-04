@@ -77,6 +77,22 @@ select,
   gap: clamp(16px, 2.2vw, 24px);
 }
 
+.debate-stage-fullwidth {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: clamp(12px, 1.8vw, 22px) clamp(16px, 2.8vw, 48px) clamp(30px, 4vw, 60px) !important;
+}
+
+/* Prevent unbroken long strings from expanding containers horizontally */
+.card-surface,
+.transcript-stream,
+.speaking-dispatch,
+.motion-banner,
+.chess-clock-arena {
+  min-width: 0;
+}
+
 /* ============================================================
    SURFACES & CARDS
    ============================================================ */

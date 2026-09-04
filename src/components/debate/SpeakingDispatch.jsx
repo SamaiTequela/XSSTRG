@@ -262,7 +262,11 @@ export default function SpeakingDispatch({
                     minHeight: '110px',
                     maxHeight: '200px',
                     overflowY: 'auto',
+                    overflowX: 'hidden',
                     whiteSpace: 'pre-wrap',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                    wordWrap: 'break-word',
                     fontStyle: judgeLiveDraft.text ? 'normal' : 'italic'
                   }}
                 >
@@ -362,7 +366,8 @@ export default function SpeakingDispatch({
         gap: '14px',
         position: 'relative',
         height: '100%',
-        minHeight: '440px'
+        minHeight: '440px',
+        minWidth: 0
       }}
     >
       {/* Floor Status & Header */}
@@ -414,7 +419,7 @@ export default function SpeakingDispatch({
 
       {/* Speech Text Area - Expands to fill available vertical space */}
       {isMyTurn ? (
-        <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <textarea
             ref={textareaRef}
             id="speech"
@@ -443,13 +448,16 @@ export default function SpeakingDispatch({
               border: `1px solid ${isFor ? 'var(--for-line)' : 'var(--against-line)'}`,
               borderRadius: 'var(--radius-md)',
               outline: 'none',
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+              wordWrap: 'break-word',
               transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
             }}
           />
         </div>
       ) : (
         /* Opponent Speaking / Rebuttal Scratchpad with Blinded Indicator */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: 0 }}>
           {/* Blinded Opponent Status Banner: NO TEXT IS TRANSMITTED OR SHOWN */}
           <div
             style={{
@@ -459,20 +467,23 @@ export default function SpeakingDispatch({
               border: '1px solid var(--line)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              gap: '8px',
+              flexWrap: 'wrap'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
               <span
                 style={{
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
+                  flexShrink: 0,
                   background: opponentTyping.isTyping ? (isFor ? 'var(--for)' : 'var(--against)') : 'var(--ink-muted)',
                   animation: opponentTyping.isTyping ? 'pulse 1.4s infinite' : 'none'
                 }}
               />
-              <span style={{ fontSize: '0.86rem', color: 'var(--ink)' }}>
+              <span style={{ fontSize: '0.86rem', color: 'var(--ink)', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                 {opponentTyping.isTyping
                   ? `${currentSpeaker} is drafting an argument (${opponentTyping.wordCount} words)...`
                   : `${currentSpeaker} is holding the floor`}
@@ -487,7 +498,8 @@ export default function SpeakingDispatch({
                 background: 'var(--surface)',
                 padding: '2px 8px',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--line)'
+                border: '1px solid var(--line)',
+                whiteSpace: 'nowrap'
               }}
             >
               BLINDED RECEPTOR
@@ -514,7 +526,10 @@ export default function SpeakingDispatch({
               color: 'var(--ink)',
               border: '1px solid var(--line)',
               borderRadius: 'var(--radius-md)',
-              outline: 'none'
+              outline: 'none',
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+              wordWrap: 'break-word'
             }}
           />
         </div>

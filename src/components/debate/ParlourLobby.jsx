@@ -58,8 +58,22 @@ export function ParlourLobby({
   const [nameAgainst, setNameAgainst] = useState('Sam');
   
   // Online chamber single player identity & bench
-  const [speakerName, setSpeakerName] = useState(initialName);
-  const [selectedRole, setSelectedRole] = useState(initialRole); // 'for' | 'against' | 'random'
+  const [speakerName, setSpeakerName] = useState(() => {
+    try {
+      const stored = localStorage.getItem('point_of_order_username');
+      if (stored && stored.trim()) return stored.trim();
+    } catch {}
+    return initialName || '';
+  });
+  const [selectedRole, setSelectedRole] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('room') || urlParams.get('code')) {
+        return 'against';
+      }
+    } catch {}
+    return initialRole || 'for';
+  });
   
   // Clocks: 10, 20, 30 minutes
   const [timeMinutes, setTimeMinutes] = useState(10);
@@ -77,13 +91,14 @@ export function ParlourLobby({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      const urlRoom = urlParams.get('room');
+      const urlRoom = urlParams.get('room') || urlParams.get('code');
       if (urlRoom) {
         const clean = urlRoom.toUpperCase().trim().slice(0, 8);
         setRoomCode(clean);
         setJoinCodeInput(clean);
         setMode('online');
         setOnlineAction('join');
+        setSelectedRole('against');
       }
     }
   }, []);

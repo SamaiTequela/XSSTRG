@@ -94,6 +94,16 @@ export default function App() {
   });
 
   const [userName, setUserName] = useState(() => {
+    try {
+      const stored = localStorage.getItem('point_of_order_username');
+      if (stored && stored.trim()) return stored.trim();
+    } catch {}
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('room') || params.get('code')) {
+        return '';
+      }
+    } catch {}
     return userRole === 'for' ? 'Alex' : (userRole === 'against' ? 'Sam' : 'Judge 1');
   });
 
@@ -105,7 +115,13 @@ export default function App() {
   const [nameFor, setNameFor] = useState('Alex');
   const [nameAgainst, setNameAgainst] = useState('Sam');
   const [hideRoomCode, setHideRoomCode] = useState(false);
-  const [gameMode, setGameMode] = useState('offline'); // 'offline' | 'online' | 'crowd_jury'
+  const [gameMode, setGameMode] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('room') || params.get('code')) return 'online';
+    } catch {}
+    return 'offline';
+  });
   const [initialSeconds, setInitialSeconds] = useState(600);
   const [verdict, setVerdict] = useState(null);
   const [devOverlayCollapsed, setDevOverlayCollapsed] = useState(false);
@@ -138,6 +154,15 @@ export default function App() {
     } catch {}
   }, [userRole]);
 
+  // Persist user name
+  useEffect(() => {
+    if (userName && userName.trim()) {
+      try {
+        localStorage.setItem('point_of_order_username', userName.trim());
+      } catch {}
+    }
+  }, [userName]);
+
   const isOnlineMode = gameMode === 'online' || gameMode === 'crowd_jury';
 
   // Hybrid Room Synchronization Hook
@@ -148,7 +173,7 @@ export default function App() {
     isOnline: isOnlineMode
   });
 
-  // Sync backend server view updates into debater names and stages
+  // Sync backend server view updates into debater names, roles, and stages
   useEffect(() => {
     if (roomSync.serverView) {
       const sv = roomSync.serverView;
@@ -164,22 +189,38 @@ export default function App() {
       if (sv.config?.perSecs) {
         setInitialSeconds(sv.config.perSecs);
       }
+
+      // CRITICAL MULTIPLAYER FIX:
+      // Authoritatively synchronize the user's role and name from the server view
+      if (sv.you) {
+        if (sv.you.side === 'for' || sv.you.side === 'against') {
+          setUserRole(sv.you.side);
+          const assignedName = sv.you.side === 'for' ? sv.seats?.for?.name : sv.seats?.against?.name;
+          if (assignedName && assignedName.trim()) {
+            setUserName(assignedName);
+          }
+        } else if (sv.you.isSpectator) {
+          setUserRole('judge');
+          if (sv.you.spectatorName && sv.you.spectatorName.trim()) {
+            setUserName(sv.you.spectatorName);
+          }
+        }
+      }
     }
   }, [roomSync.serverView]);
 
   // Sync remote phase changes — ONLY in online modes.
-  // In offline mode roomSync.roomState.phase can linger at 'verdict', which
-  // would override the user navigating away (Main Menu / New Debate / Rematch).
-  // Also skip if remotePhase is null (initial state before any game starts).
   useEffect(() => {
     if (!isOnlineMode) return;
     const remotePhase = roomSync.roomState?.phase;
     if (!remotePhase) return; // null = not yet initialised, ignore
-    if (remotePhase && remotePhase !== phase) {
-      if (remotePhase === 'debate' && phase === 'room_lobby') {
+    if (remotePhase !== phase) {
+      if (remotePhase === 'debate' && (phase === 'room_lobby' || phase === 'lobby')) {
         setPhase('transition');
       } else if (remotePhase === 'verdict') {
         setPhase('verdict');
+      } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
+        setPhase('room_lobby');
       }
     }
     if (roomSync.roomState?.verdict) {
@@ -238,7 +279,17 @@ export default function App() {
             role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'player') : 'player',
             seat: role === 'for' || role === 'against' ? role : null
           });
-          if (view) roomSync.syncServerView?.(view);
+          if (view) {
+            roomSync.syncServerView?.(view);
+            if (view.you?.side) {
+              setUserRole(view.you.side);
+              const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
+              if (myAssignedName) setUserName(myAssignedName);
+            } else if (view.you?.isSpectator) {
+              setUserRole('judge');
+              if (view.you.spectatorName) setUserName(view.you.spectatorName);
+            }
+          }
         } else {
           const view = await createOnlineRoom({
             code: chosenCode,
@@ -248,7 +299,16 @@ export default function App() {
             judgeMode: mode === 'crowd_jury',
             role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'for') : role
           });
-          if (view) roomSync.syncServerView?.(view);
+          if (view) {
+            roomSync.syncServerView?.(view);
+            if (view.you?.side) {
+              setUserRole(view.you.side);
+              const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
+              if (myAssignedName) setUserName(myAssignedName);
+            } else if (view.you?.isSpectator) {
+              setUserRole('judge');
+            }
+          }
         }
       } catch (err) {
         console.warn('Room enter API call warning:', err);

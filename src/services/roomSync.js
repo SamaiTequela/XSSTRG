@@ -265,14 +265,13 @@ export function useRoomSync({
     };
   }, [roomId, userProfile.name, userProfile.role, isJudge]);
 
-  // 2. HTTP Polling Loop for Online Chambers
   const syncServerView = useCallback((v) => {
     if (!v) return;
     setServerView(v);
 
     setRoomState((prev) => {
-      const remainingFor = Math.round((v.clock?.remaining?.for || 0) / 1000);
-      const remainingAgainst = Math.round((v.clock?.remaining?.against || 0) / 1000);
+      const remainingFor = Math.round((v.clock?.remaining?.for ?? 0) / 1000);
+      const remainingAgainst = Math.round((v.clock?.remaining?.against ?? 0) / 1000);
       const prepSeconds = v.clock?.prepUntil
         ? Math.max(0, Math.round((v.clock.prepUntil - (v.serverNow || Date.now())) / 1000))
         : 0;
@@ -282,8 +281,8 @@ export function useRoomSync({
         phase: v.phase,
         activeSpeaker: v.clock?.active || prev.activeSpeaker,
         turnNo: v.turnNo || prev.turnNo,
-        remainingFor: remainingFor > 0 ? remainingFor : prev.remainingFor,
-        remainingAgainst: remainingAgainst > 0 ? remainingAgainst : prev.remainingAgainst,
+        remainingFor: typeof remainingFor === 'number' && !isNaN(remainingFor) ? remainingFor : prev.remainingFor,
+        remainingAgainst: typeof remainingAgainst === 'number' && !isNaN(remainingAgainst) ? remainingAgainst : prev.remainingAgainst,
         prepSeconds,
         transcript: v.transcript || prev.transcript,
         verdict: v.verdict || prev.verdict,
@@ -552,6 +551,11 @@ export function useRoomSync({
     broadcastRequestEnd,
     broadcastRespondEnd,
     broadcastVerdict,
+    onlineParticipantCount: serverView ? (
+      (serverView.seats?.for?.filled ? 1 : 0) +
+      (serverView.seats?.against?.filled ? 1 : 0) +
+      (serverView.spectators?.length || 0)
+    ) : (participants.length || 1),
     switchSeat,
     startDebate,
     resetDebateState,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Handshake, Check, X } from 'lucide-react';
 import DebateHeader from './DebateHeader';
 import ChessClocks from './ChessClocks';
 import PrepTimeBanner from './PrepTimeBanner';
@@ -34,7 +35,14 @@ export function DebateStage({
 
   // In offline mode, the active player on the single device takes the floor
   const isOffline = gameMode === 'offline' || gameMode === 'hotseat';
-  const effectiveRole = isOffline ? (userRole === 'judge' ? 'judge' : activeSpeaker) : userRole;
+
+  // CRITICAL MULTIPLAYER FIX:
+  // In online mode, ALWAYS prioritize authoritative seat assignment from the server view.
+  // This completely stops debaters from swapping roles or becoming blinded on their own turns.
+  const authoritativeRole = !isOffline && roomSync?.serverView?.you
+    ? (roomSync.serverView.you.side || (roomSync.serverView.you.isSpectator ? 'judge' : userRole))
+    : userRole;
+  const effectiveRole = isOffline ? (userRole === 'judge' ? 'judge' : activeSpeaker) : authoritativeRole;
 
   // Local chess clocks (initialized to full match time, e.g. 600 = 10:00)
   const [remainingFor, setRemainingFor] = useState(roomState.remainingFor ?? initialSeconds);
@@ -45,6 +53,11 @@ export function DebateStage({
 
   // Determine if it is currently this tab's turn to speak
   const isMyTurn = effectiveRole === 'judge' ? false : (effectiveRole === activeSpeaker);
+
+  // Accurate debater count for header
+  const participantCount = !isOffline && roomSync?.onlineParticipantCount
+    ? roomSync.onlineParticipantCount
+    : (roomSync?.participants?.length || 1);
 
   // Synchronize incoming roomState clocks
   useEffect(() => {
@@ -114,7 +127,7 @@ export function DebateStage({
         remainingFor,
         remainingAgainst
       });
-      // Update room state for next speaker
+      // Optimistic update for responsive local UI
       roomSync.setRoomState((prev) => ({
         ...prev,
         transcript: nextTranscript,
@@ -143,14 +156,26 @@ export function DebateStage({
     }
   };
 
-  const handleRequestEnd = () => {
+  const handleRequestEnd = async () => {
     playClick();
+    if (!isOffline && roomSync?.broadcastRequestEnd) {
+      await roomSync.broadcastRequestEnd();
+      return;
+    }
     if (onTriggerDeliberation) {
       onTriggerDeliberation();
     }
   };
 
-  const handleConcede = () => {
+  const handleConcede = async () => {
+    if (!isOffline && roomSync?.broadcastConcede) {
+      const v = await roomSync.broadcastConcede();
+      if (v && onConcedeVerdict) {
+        onConcedeVerdict(v);
+        return;
+      }
+    }
+
     const winner = activeSpeaker === 'for' ? 'against' : 'for';
     const winnerName = winner === 'for' ? nameFor : nameAgainst;
     const loserName = activeSpeaker === 'for' ? nameFor : nameAgainst;
@@ -184,8 +209,13 @@ export function DebateStage({
     }
   };
 
+  // Mutual end request from opponent
+  const endRequest = roomState.endRequest || roomSync?.serverView?.endRequest;
+  const isEndRequestFromOpponent = endRequest && endRequest.from !== effectiveRole;
+  const opponentName = effectiveRole === 'for' ? nameAgainst : nameFor;
+
   return (
-    <div className="debate-container">
+    <div className="debate-container debate-stage-fullwidth">
       {/* 1. Masthead & Motion Banner */}
       <DebateHeader
         roomCode={roomCode}
@@ -194,12 +224,59 @@ export function DebateStage({
         onToggleTheme={onToggleTheme}
         onReturnLobby={onReturnLobby}
         gameMode={gameMode}
-        participantCount={roomSync?.participants?.length || 1}
+        participantCount={participantCount}
         judgeCount={roomSync?.participants?.filter(p => p.role === 'judge').length || 0}
         motionText={motionText}
         initialSeconds={initialSeconds}
         initialHideCode={initialHideCode}
       />
+
+      {/* Incoming Mutual End Proposal Banner */}
+      <AnimatePresence>
+        {isEndRequestFromOpponent && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            style={{
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--brass-subtle)',
+              border: '1px solid var(--brass-line)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Handshake size={18} color="var(--brass)" />
+              <span style={{ fontSize: '0.92rem', color: 'var(--ink)' }}>
+                <strong>{opponentName}</strong> has proposed to conclude the debate early and proceed to adjudication.
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => roomSync?.broadcastRespondEnd?.(true)}
+                className="btn-primary"
+                style={{ padding: '6px 14px', fontSize: '0.82rem', background: 'var(--brass)' }}
+              >
+                <Check size={14} /> Accept & Conclude
+              </button>
+              <button
+                type="button"
+                onClick={() => roomSync?.broadcastRespondEnd?.(false)}
+                className="btn-ghost"
+                style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+              >
+                <X size={14} /> Decline
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 2. Dual Chess Clocks Arena */}
       <ChessClocks
@@ -227,12 +304,12 @@ export function DebateStage({
         )}
       </AnimatePresence>
 
-      {/* 4. Main Debate Arena: Split on Desktop, Tabbed on Mobile */}
+      {/* 4. Main Debate Arena: Full-width Split on Desktop, Tabbed on Mobile */}
       <div
         className="debate-workspace"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
           gap: 'clamp(16px, 2vw, 24px)',
           alignItems: 'stretch'
         }}
@@ -243,7 +320,8 @@ export function DebateStage({
           style={{
             display: mobileTab === 'floor' ? 'flex' : 'none',
             flexDirection: 'column',
-            height: '100%'
+            height: '100%',
+            minWidth: 0
           }}
         >
           <SpeakingDispatch
@@ -268,10 +346,11 @@ export function DebateStage({
           style={{
             display: mobileTab === 'record' ? 'flex' : 'block',
             flexDirection: 'column',
-            height: '100%'
+            height: '100%',
+            minWidth: 0
           }}
         >
-          <TranscriptRecord turns={turns} />
+          <TranscriptRecord turns={turns} nameFor={nameFor} nameAgainst={nameAgainst} />
         </div>
       </div>
 
@@ -302,17 +381,22 @@ export function DebateStage({
         onDismiss={() => setHandoffOpen(false)}
       />
 
-      {/* Responsive CSS Overrides for Mobile Dock & Workspace */}
+      {/* Responsive CSS Overrides for Mobile Dock & Full-Width Workspace */}
       <style>{`
         @media (min-width: 860px) {
           .debate-workspace {
-            grid-template-columns: 1.15fr 1fr !important;
+            grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) !important;
+            align-items: stretch !important;
           }
           .workspace-floor {
-            display: block !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-width: 0 !important;
           }
           .workspace-record {
-            display: block !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-width: 0 !important;
           }
           .mobile-only-dock {
             display: none !important;
@@ -332,3 +416,4 @@ export function DebateStage({
 }
 
 export default DebateStage;
+

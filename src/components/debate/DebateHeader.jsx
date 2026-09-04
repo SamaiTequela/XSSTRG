@@ -273,7 +273,9 @@ export function DebateHeader({
             fontSize: 'clamp(1.28rem, 2.8vw, 1.85rem)',
             lineHeight: 1.25,
             color: 'var(--ink)',
-            textWrap: 'balance'
+            textWrap: 'balance',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word'
           }}
         >
           {motionText || "This House believes that artificial intelligence development should be subject to international oversight."}

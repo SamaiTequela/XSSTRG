@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { BookOpen, User, ArrowDownCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 
-export default function TranscriptRecord({ turns = [] }) {
+export default function TranscriptRecord({ turns = [], nameFor = 'Alex', nameAgainst = 'Sam' }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -18,8 +18,10 @@ export default function TranscriptRecord({ turns = [] }) {
         flexDirection: 'column',
         gap: '16px',
         height: '100%',
-        maxHeight: '640px',
-        overflow: 'hidden'
+        minHeight: '440px',
+        maxHeight: '680px',
+        overflow: 'hidden',
+        minWidth: 0
       }}
     >
       {/* Header */}
@@ -58,7 +60,9 @@ export default function TranscriptRecord({ turns = [] }) {
           flexDirection: 'column',
           gap: '14px',
           overflowY: 'auto',
+          overflowX: 'hidden',
           flex: 1,
+          minWidth: 0,
           paddingRight: '6px'
         }}
       >
@@ -77,6 +81,7 @@ export default function TranscriptRecord({ turns = [] }) {
         ) : (
           turns.map((turn, index) => {
             const isFor = turn.side === 'for';
+            const speakerDisplayName = turn.speaker || turn.name || (isFor ? (nameFor || 'Proposition') : (nameAgainst || 'Opposition'));
             return (
               <motion.div
                 key={turn.id || index}
@@ -85,13 +90,17 @@ export default function TranscriptRecord({ turns = [] }) {
                 transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                 style={{
                   alignSelf: isFor ? 'flex-start' : 'flex-end',
-                  maxWidth: '86%',
+                  maxWidth: '92%',
+                  minWidth: 0,
                   width: 'fit-content',
                   padding: '14px 18px',
                   borderRadius: 'var(--radius-md)',
                   background: isFor ? 'var(--for-bg)' : 'var(--against-bg)',
                   border: `1px solid ${isFor ? 'var(--for-line)' : 'var(--against-line)'}`,
-                  boxShadow: 'var(--shadow-sm)'
+                  boxShadow: 'var(--shadow-sm)',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  wordWrap: 'break-word'
                 }}
               >
                 {/* Turn Meta Header */}
@@ -113,7 +122,7 @@ export default function TranscriptRecord({ turns = [] }) {
                         color: isFor ? 'var(--for-strong)' : 'var(--against-strong)'
                       }}
                     >
-                      {turn.speaker}
+                      {speakerDisplayName}
                     </strong>
                     <span className={`role-pill ${turn.side}`} style={{ fontSize: '0.62rem', padding: '1px 7px' }}>
                       {isFor ? 'PROPOSITION' : 'OPPOSITION'}
@@ -132,7 +141,10 @@ export default function TranscriptRecord({ turns = [] }) {
                     lineHeight: '1.6',
                     color: 'var(--ink)',
                     whiteSpace: 'pre-wrap',
-                    textWrap: 'pretty'
+                    textWrap: 'pretty',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                    wordWrap: 'break-word'
                   }}
                 >
                   {turn.text}
