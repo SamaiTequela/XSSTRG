@@ -16,24 +16,8 @@ import {
   Home
 } from 'lucide-react';
 
-const INITIAL_TURNS = [
-  {
-    id: 'turn-1',
-    turnNo: 1,
-    speaker: 'Alex',
-    side: 'for',
-    text: "Mr. Speaker, the modern digital public square is no longer merely a venue for recreational chatter—it is the operational infrastructure of democratic discourse. When platforms permit unfettered anonymity, they do not preserve liberty; they subsidize coordinated disinformation networks, algorithmic bot swarms, and bad-faith actors who poison our civic deliberations without consequence. Verified identity restores real reputational stakes to public speech.",
-    isConcession: false
-  },
-  {
-    id: 'turn-2',
-    turnNo: 2,
-    speaker: 'Sam',
-    side: 'against',
-    text: "The proposition's diagnosis conflates accountability with state surveillance. Throughout history, anonymous publication—from the Federalist Papers to contemporary dissidents under authoritarian regimes—has been the ultimate safeguard against reprisal by the powerful. Forcing citizens to surrender biometric identity or government credentials to private mega-platforms merely creates centralized honeypots for surveillance, while chilling whistleblowers and vulnerable minorities.",
-    isConcession: false
-  }
-];
+// Clean slate: no hardcoded mock speeches
+const INITIAL_TURNS = [];
 
 // Check whether running in development environment
 const isDev = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') || Boolean(import.meta.env?.DEV);
@@ -87,6 +71,9 @@ export default function App() {
     }
   });
 
+  const [gameMode, setGameMode] = useState('hotseat'); // 'hotseat' | 'online'
+  const [initialSeconds, setInitialSeconds] = useState(300); // 300s = 5 min
+
   const [verdict, setVerdict] = useState(null);
   const [devOverlayCollapsed, setDevOverlayCollapsed] = useState(false);
 
@@ -138,11 +125,26 @@ export default function App() {
     roomSync.broadcastPhase(nextPhase);
   };
 
-  const handleEnterChamberFromLobby = ({ motion, role, name, roomCode: chosenCode }) => {
+  const handleEnterChamberFromLobby = ({ motion, role, name, roomCode: chosenCode, mode: chosenMode, remainingSeconds }) => {
     setMotionText(motion);
     setUserRole(role);
     setUserName(name);
     setRoomCode(chosenCode);
+    const mode = chosenMode || 'hotseat';
+    setGameMode(mode);
+    const secs = remainingSeconds || 300;
+    setInitialSeconds(secs);
+
+    // Clean slate: Turn 1, Proposition holds opening floor, clocks full, transcript empty
+    roomSync.resetDebateState?.({
+      remainingFor: secs,
+      remainingAgainst: secs,
+      turnNo: 1,
+      activeSpeaker: 'for',
+      prepSeconds: 0,
+      transcript: []
+    });
+
     setPhase('debate');
     roomSync.broadcastPhase('debate');
   };
@@ -425,6 +427,9 @@ export default function App() {
           userName={userName}
           roomCode={roomCode}
           roomSync={roomSync}
+          gameMode={gameMode}
+          initialSeconds={initialSeconds}
+          onConcedeVerdict={handleSubmitJudgement}
         />
       )}
 
@@ -438,7 +443,8 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           onBackToDebate={() => handlePhaseChange('debate')}
           onSubmitJudgement={handleSubmitJudgement}
-          turns={roomSync.roomState.transcript.length > 0 ? roomSync.roomState.transcript : INITIAL_TURNS}
+          turns={roomSync.roomState.transcript || []}
+          gameMode={gameMode}
         />
       )}
 
@@ -451,9 +457,20 @@ export default function App() {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onNewDebate={() => setPhase('lobby')}
-          onRematch={() => setPhase('debate')}
-          turns={roomSync.roomState.transcript.length > 0 ? roomSync.roomState.transcript : INITIAL_TURNS}
+          onRematch={() => {
+            roomSync.resetDebateState?.({
+              remainingFor: initialSeconds,
+              remainingAgainst: initialSeconds,
+              turnNo: 1,
+              activeSpeaker: 'for',
+              prepSeconds: 0,
+              transcript: []
+            });
+            setPhase('debate');
+          }}
+          turns={roomSync.roomState.transcript || []}
           verdict={verdict}
+          gameMode={gameMode}
         />
       )}
     </main>

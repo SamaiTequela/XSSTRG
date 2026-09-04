@@ -17,7 +17,10 @@ export function DebateStage({
   onToggleTheme,
   onTriggerDeliberation,
   onReturnLobby,
-  roomSync
+  roomSync,
+  gameMode = 'hotseat', // 'hotseat' | 'online'
+  initialSeconds = 300,
+  onConcedeVerdict
 }) {
   // Extract state from synchronized room hook if available
   const roomState = roomSync?.roomState || {};
@@ -25,15 +28,18 @@ export function DebateStage({
   const activeSpeaker = roomState.activeSpeaker || 'for';
   const turnNo = roomState.turnNo || (turns.length + 1);
 
-  // Local chess clocks (or synced via roomState)
-  const [remainingFor, setRemainingFor] = useState(roomState.remainingFor ?? 262);
-  const [remainingAgainst, setRemainingAgainst] = useState(roomState.remainingAgainst ?? 238);
+  // In hotseat mode, the active player on the single device takes the floor
+  const effectiveRole = gameMode === 'hotseat' ? (userRole === 'judge' ? 'judge' : activeSpeaker) : userRole;
+
+  // Local chess clocks (initialized to full match time, e.g. 300 = 5:00)
+  const [remainingFor, setRemainingFor] = useState(roomState.remainingFor ?? initialSeconds);
+  const [remainingAgainst, setRemainingAgainst] = useState(roomState.remainingAgainst ?? initialSeconds);
   const [prepSeconds, setPrepSeconds] = useState(roomState.prepSeconds ?? 0);
   const [mobileTab, setMobileTab] = useState('floor'); // 'floor' | 'record'
   const [handoffOpen, setHandoffOpen] = useState(false);
 
   // Determine if it is currently this tab's turn to speak
-  const isMyTurn = userRole === 'judge' ? false : (userRole === activeSpeaker);
+  const isMyTurn = effectiveRole === 'judge' ? false : (effectiveRole === activeSpeaker);
 
   // Synchronize incoming roomState clocks
   useEffect(() => {
@@ -48,7 +54,7 @@ export function DebateStage({
     }
   }, [roomState.remainingFor, roomState.remainingAgainst, roomState.prepSeconds]);
 
-  // Chess clock countdown for active speaker
+  // Chess clock countdown for active speaker (only when prep is finished)
   useEffect(() => {
     const timer = setInterval(() => {
       if (prepSeconds > 0) {
@@ -64,28 +70,31 @@ export function DebateStage({
 
   // Submitting a turn
   const handleSubmitTurn = (text) => {
-    const currentName = activeSpeaker === 'for' ? 'Alex' : 'Sam';
+    const currentName = activeSpeaker === 'for' ? (gameMode === 'hotseat' ? 'Alex' : userName) : (gameMode === 'hotseat' ? 'Sam' : userName);
     const nextSide = activeSpeaker === 'for' ? 'against' : 'for';
-    const nextTurnNo = turnNo + 1;
+    const currentTurnNo = turns.length + 1;
+    const nextTurnNo = currentTurnNo + 1;
 
     const newTurn = {
       id: `turn-${Date.now()}`,
-      turnNo: turnNo,
+      turnNo: currentTurnNo,
       speaker: currentName,
       side: activeSpeaker,
       text: text,
       isConcession: false
     };
 
+    const nextTranscript = [...turns, newTurn];
+
     if (roomSync) {
       roomSync.broadcastTurn(newTurn, nextSide, nextTurnNo, {
         remainingFor,
         remainingAgainst
       });
-      // Also update local state
+      // Update room state for next speaker
       roomSync.setRoomState((prev) => ({
         ...prev,
-        transcript: [...prev.transcript, newTurn],
+        transcript: nextTranscript,
         activeSpeaker: nextSide,
         turnNo: nextTurnNo,
         prepSeconds: 15,
@@ -93,12 +102,13 @@ export function DebateStage({
         remainingAgainst
       }));
     }
+    setPrepSeconds(15);
   };
 
   const handleSkipPrep = () => {
     // Strict permission check: only active speaker can skip prep and force-start turn
-    if (userRole !== activeSpeaker) {
-      console.warn(`[SECURITY GUARD] Rejected unauthorized prep skip attempt by '${userRole}'. Active speaker is '${activeSpeaker}'.`);
+    if (effectiveRole !== activeSpeaker) {
+      console.warn(`[SECURITY GUARD] Rejected unauthorized prep skip attempt by '${effectiveRole}'. Active speaker is '${activeSpeaker}'.`);
       return;
     }
     setPrepSeconds(0);
@@ -116,33 +126,36 @@ export function DebateStage({
   };
 
   const handleConcede = () => {
-    const currentName = activeSpeaker === 'for' ? 'Alex' : 'Sam';
-    const nextSide = activeSpeaker === 'for' ? 'against' : 'for';
-    const nextTurnNo = turnNo + 1;
+    const winner = activeSpeaker === 'for' ? 'against' : 'for';
+    const winnerName = winner === 'for' ? 'Alex' : 'Sam';
+    const loserName = activeSpeaker === 'for' ? 'Alex' : 'Sam';
+    const currentTurnNo = turns.length + 1;
 
-    const newTurn = {
-      id: `turn-${Date.now()}`,
-      turnNo: turnNo,
-      speaker: currentName,
-      side: activeSpeaker,
-      text: "[Conceded this exchange]",
-      isConcession: true
+    const concessionVerdict = {
+      winner,
+      winnerName,
+      headline: `${winnerName} wins by concession.`,
+      rationale: `${loserName} conceded the debate, bringing the match to an immediate conclusion and awarding victory to ${winnerName}.`,
+      scores: { for: winner === 'for' ? 10 : 0, against: winner === 'against' ? 10 : 0 },
+      for: {
+        score: winner === 'for' ? 10 : 0,
+        strengths: winner === 'for' ? [{ point: 'Held the floor until opponent conceded', citationQuote: 'Match concluded by concession', turnNo: currentTurnNo }] : [],
+        weaknesses: winner === 'for' ? [] : [{ point: 'Conceded the debate', citationQuote: 'Formal concession', turnNo: currentTurnNo }]
+      },
+      against: {
+        score: winner === 'against' ? 10 : 0,
+        strengths: winner === 'against' ? [{ point: 'Held the floor until opponent conceded', citationQuote: 'Match concluded by concession', turnNo: currentTurnNo }] : [],
+        weaknesses: winner === 'against' ? [] : [{ point: 'Conceded the debate', citationQuote: 'Formal concession', turnNo: currentTurnNo }]
+      },
+      individualScores: [
+        { judgeLabel: 'Chief Adjudicator', scoreFor: winner === 'for' ? 10 : 0, scoreAgainst: winner === 'against' ? 10 : 0, remarks: `${loserName} conceded the match.` }
+      ]
     };
 
-    if (roomSync) {
-      roomSync.broadcastTurn(newTurn, nextSide, nextTurnNo, {
-        remainingFor,
-        remainingAgainst
-      });
-      roomSync.setRoomState((prev) => ({
-        ...prev,
-        transcript: [...prev.transcript, newTurn],
-        activeSpeaker: nextSide,
-        turnNo: nextTurnNo,
-        prepSeconds: 10,
-        remainingFor,
-        remainingAgainst
-      }));
+    if (onConcedeVerdict) {
+      onConcedeVerdict(concessionVerdict);
+    } else if (onTriggerDeliberation) {
+      onTriggerDeliberation();
     }
   };
 
@@ -155,8 +168,11 @@ export function DebateStage({
         theme={theme}
         onToggleTheme={onToggleTheme}
         onReturnLobby={onReturnLobby}
-        judgeCount={3}
+        gameMode={gameMode}
+        participantCount={roomSync?.participants?.length || 1}
+        judgeCount={roomSync?.participants?.filter(p => p.role === 'judge').length || 0}
         motionText={motionText}
+        initialSeconds={initialSeconds}
       />
 
       {/* 2. Dual Chess Clocks Arena */}
@@ -179,7 +195,7 @@ export function DebateStage({
             prepSecondsLeft={prepSeconds}
             speakerName={activeSpeaker === 'for' ? 'Alex' : 'Sam'}
             side={activeSpeaker}
-            userRole={userRole}
+            userRole={effectiveRole}
             onSkipPrep={handleSkipPrep}
           />
         )}
@@ -214,7 +230,7 @@ export function DebateStage({
             disabled={remainingFor === 0 && remainingAgainst === 0}
             onTyping={roomSync?.broadcastTyping}
             opponentTyping={roomSync?.opponentTyping}
-            userRole={userRole}
+            userRole={effectiveRole}
             judgeLiveDraft={roomSync?.judgeLiveDraft}
           />
         </div>

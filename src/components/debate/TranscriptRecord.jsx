@@ -163,3 +163,5 @@ export default function TranscriptRecord({ turns = [] }) {
     </div>
   );
 }
+
+export { TranscriptRecord };

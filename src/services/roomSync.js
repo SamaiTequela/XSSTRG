@@ -13,11 +13,11 @@ export function useRoomSync({
   const [roomState, setRoomState] = useState({
     phase: 'debate',
     activeSpeaker: 'for',
-    turnNo: 3,
-    remainingFor: 262,
-    remainingAgainst: 238,
+    turnNo: 1,
+    remainingFor: 300,
+    remainingAgainst: 300,
     prepSeconds: 0,
-    transcript: initialTurns,
+    transcript: initialTurns || [],
     verdict: null
   });
 
@@ -361,10 +361,23 @@ export function useRoomSync({
   }, [dispatchMessage]);
 
   // 5. Verdict Reveal
-  const broadcastVerdict = useCallback((verdict) => {
+  // 6. Reset Debate State (for starting new clean room)
+  const resetDebateState = useCallback((newState = {}) => {
+    const fresh = {
+      phase: 'debate',
+      activeSpeaker: 'for',
+      turnNo: 1,
+      remainingFor: newState.remainingFor || 300,
+      remainingAgainst: newState.remainingAgainst || 300,
+      prepSeconds: newState.prepSeconds ?? 0,
+      transcript: [],
+      verdict: null,
+      ...newState
+    };
+    setRoomState(fresh);
     dispatchMessage(generalChannelRef.current, {
-      type: 'VERDICT_REVEAL',
-      payload: { verdict },
+      type: 'SYNC_STATE',
+      payload: fresh,
       senderId: CLIENT_ID
     });
   }, [dispatchMessage]);
@@ -380,6 +393,7 @@ export function useRoomSync({
     broadcastTurn,
     broadcastSkipPrep,
     broadcastPhase,
-    broadcastVerdict
+    broadcastVerdict,
+    resetDebateState
   };
 }

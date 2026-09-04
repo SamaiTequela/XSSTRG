@@ -21,36 +21,7 @@ import {
 } from 'lucide-react';
 import DebateHeader from './DebateHeader';
 
-const DEFAULT_TRANSCRIPT = [
-  {
-    id: 'turn-1',
-    turnNo: 1,
-    speaker: 'Alex',
-    side: 'for',
-    text: "Mr. Speaker, the modern digital public square is no longer merely a venue for recreational chatter—it is the operational infrastructure of democratic discourse. When platforms permit unfettered anonymity, they do not preserve liberty; they subsidize coordinated disinformation networks, algorithmic bot swarms, and bad-faith actors who poison our civic deliberations without consequence. Verified identity restores real reputational stakes to public speech."
-  },
-  {
-    id: 'turn-2',
-    turnNo: 2,
-    speaker: 'Sam',
-    side: 'against',
-    text: "The proposition's diagnosis conflates accountability with state surveillance. Throughout history, anonymous publication—from the Federalist Papers to contemporary dissidents under authoritarian regimes—has been the ultimate safeguard against reprisal by the powerful. Forcing citizens to surrender biometric identity or government credentials to private mega-platforms merely creates centralized honeypots for surveillance, while chilling whistleblowers and vulnerable minorities."
-  },
-  {
-    id: 'turn-3',
-    turnNo: 3,
-    speaker: 'Alex',
-    side: 'for',
-    text: "The opposition's appeal to the Federalist Papers ignores the asymmetry of the algorithmic era. Publius wrote under a pseudonym, but was published on physical printing presses subject to libel law and editorial friction. Today, automated bot farms weaponize anonymity at the speed of light. Verification does not require displaying real legal names publicly; it merely demands zero-knowledge cryptographic proof of unique personhood to extinguish synthetic bot manipulation."
-  },
-  {
-    id: 'turn-4',
-    turnNo: 4,
-    speaker: 'Sam',
-    side: 'against',
-    text: "Zero-knowledge protocols still require trust in state-issued credentials or biometric anchors that are routinely abused by despotic regimes to de-anonymize political opposition. If personhood verification is codified as a prerequisite for discourse, those denied credentials by corrupt or hostile authorities are functionally disenfranchised from public assembly."
-  }
-];
+const DEFAULT_TRANSCRIPT = [];
 
 export default function VerdictStage({
   motionText,
@@ -62,7 +33,9 @@ export default function VerdictStage({
   onNewDebate,
   onRematch,
   turns = DEFAULT_TRANSCRIPT,
-  verdict = null
+  verdict = null,
+  gameMode = 'hotseat',
+  judgeCount = 1
 }) {
   const [copied, setCopied] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -73,41 +46,39 @@ export default function VerdictStage({
   const isAgainstWinner = winner === 'against';
   const isDraw = winner === 'draw';
 
-  const scoreFor = verdict?.scores?.for ?? 7.7;
-  const scoreAgainst = verdict?.scores?.against ?? 6.7;
+  const scoreFor = verdict?.scores?.for ?? 7.5;
+  const scoreAgainst = verdict?.scores?.against ?? 7.0;
 
   const winnerHeadline = verdict?.headline || (isForWinner
-    ? "Proposition successfully established the structural harms of platform anonymity while Opposition failed to insulate the state surveillance dilemma."
+    ? `Proposition (${nameFor}) prevailed on core framework and substantive impacts.`
     : (isDraw
-      ? "Security Against Bots Clashes Directly With Protection of Free Speech"
-      : "Opposition successfully established the perils of state credentialing over platform speech."));
+      ? "Chamber divided evenly on the balance of merits and refutations."
+      : `Opposition (${nameAgainst}) prevailed in refuting the proposition's case.`));
 
   const winnerRationale = verdict?.rationale || (isForWinner
-    ? `The round turned on the third exchange: ${nameFor}’s introduction of zero-knowledge personhood cryptographic proof insulated the affirmative model from ${nameAgainst}’s state-surveillance objection, leaving the proposition’s anti-bot harms largely uncontested.`
-    : `The jury deliberated on the fundamental tension between accountability and civil liberties, concluding with rigorous analysis of the transcript record.`);
+    ? `The adjudicator found that ${nameFor} maintained consistent analytical clarity on the central clashes of the motion, offering stronger defense and clearer weighing against ${nameAgainst}'s challenges.`
+    : (isDraw
+      ? `Both speakers demonstrated formidable argumentation and evidence, resulting in an evenly split adjudication across the record.`
+      : `The adjudicator determined that ${nameAgainst} effectively countered the key contentions of the motion and sustained decisive rebuttal across the debate floor.`));
 
   const forStrengths = verdict?.for?.strengths || [
-    { point: "Distinction between legal disclosure and cryptographic personhood", citationQuote: "Verification does not require displaying real legal names publicly; it merely demands zero-knowledge cryptographic proof...", turnNo: 3 },
-    { point: "Clear framing of the public square as critical democratic infrastructure" }
+    { point: `Clear conceptual framing and rigorous defense of the affirmative motion.` }
   ];
 
   const forWeaknesses = verdict?.for?.weaknesses || [
-    { point: "Did not fully address regulatory capture or corruption within verification authorities." }
+    { point: `Could offer further comparative impact weighing against the opposition's alternatives.` }
   ];
 
   const againstStrengths = verdict?.against?.strengths || [
-    { point: "Compelling defense of dissident speech and civil rights history", citationQuote: "...from the Federalist Papers to contemporary dissidents under authoritarian regimes—has been the ultimate safeguard...", turnNo: 2 },
-    { point: "High rhetorical polish and evocative philosophical appeals" }
+    { point: `Principled rebuttal challenging core premises and assumptions of the motion.` }
   ];
 
   const againstWeaknesses = verdict?.against?.weaknesses || [
-    { point: "Failed to provide a counter-model to mitigate autonomous bot swarms once the proposition conceded anonymity." }
+    { point: `Could sharpen counter-mechanisms to resolve the harms presented by the proposition.` }
   ];
 
   const judgeBallots = verdict?.individualScores || [
-    { judgeLabel: "Judge 1", scoreFor: 8, scoreAgainst: 6, remarks: "Proposition held the floor better during the second exchange and landed the empirical point cleanly." },
-    { judgeLabel: "You (Judge 2)", scoreFor: 7, scoreAgainst: 7, remarks: "High quality deliberation from both debaters; zero-knowledge defense gave Alex a slight edge on impact weighing, but Sam's civil liberty framing was formidable." },
-    { judgeLabel: "Judge 3", scoreFor: 8, scoreAgainst: 7, remarks: "Opposition was eloquent and had great historical depth, but dodged the coordinated algorithmic manipulation question." }
+    { judgeLabel: "AI Adjudicator (Gemini)", scoreFor: scoreFor, scoreAgainst: scoreAgainst, remarks: winnerRationale }
   ];
 
   const togglePoint = (id) => {
@@ -126,11 +97,12 @@ export default function VerdictStage({
       {/* 1. Motion Banner Pinned At Top */}
       <DebateHeader
         roomCode={roomCode}
-        turnNo={4}
+        turnNo={turns.length || 1}
         theme={theme}
         onToggleTheme={onToggleTheme}
         motionText={motionText}
-        judgeCount={3}
+        judgeCount={judgeCount}
+        gameMode={gameMode}
       />
 
       {/* Subheader & Quick Actions */}
@@ -723,38 +695,45 @@ export default function VerdictStage({
                   gap: '14px'
                 }}
               >
-                {turns.map((turn, idx) => {
-                  const isFor = turn.side === 'for';
-                  return (
-                    <div
-                      key={turn.id || idx}
-                      style={{
-                        padding: '14px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        background: isFor ? 'var(--for-bg)' : 'var(--against-bg)',
-                        border: `1px solid ${isFor ? 'var(--for-line)' : 'var(--against-line)'}`,
-                        boxShadow: 'var(--shadow-sm)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <strong style={{ fontFamily: 'Bricolage Grotesque', fontSize: '0.92rem', color: isFor ? 'var(--for-strong)' : 'var(--against-strong)' }}>
-                            {turn.speaker}
-                          </strong>
-                          <span className={`role-pill ${turn.side}`} style={{ fontSize: '0.6rem', padding: '1px 6px' }}>
-                            {isFor ? 'PROPOSITION' : 'OPPOSITION'}
+                {turns.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-muted)' }}>
+                    <BookOpen size={32} style={{ opacity: 0.4, margin: '0 auto 8px auto', display: 'block' }} />
+                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No recorded speeches in this session.</p>
+                  </div>
+                ) : (
+                  turns.map((turn, idx) => {
+                    const isFor = turn.side === 'for';
+                    return (
+                      <div
+                        key={turn.id || idx}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: 'var(--radius-md)',
+                          background: isFor ? 'var(--for-bg)' : 'var(--against-bg)',
+                          border: `1px solid ${isFor ? 'var(--for-line)' : 'var(--against-line)'}`,
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <strong style={{ fontFamily: 'Bricolage Grotesque', fontSize: '0.92rem', color: isFor ? 'var(--for-strong)' : 'var(--against-strong)' }}>
+                              {turn.speaker}
+                            </strong>
+                            <span className={`role-pill ${turn.side}`} style={{ fontSize: '0.6rem', padding: '1px 6px' }}>
+                              {isFor ? 'PROPOSITION' : 'OPPOSITION'}
+                            </span>
+                          </div>
+                          <span className="eyebrow" style={{ fontSize: '0.64rem' }}>
+                            Turn {turn.turnNo || idx + 1}
                           </span>
                         </div>
-                        <span className="eyebrow" style={{ fontSize: '0.64rem' }}>
-                          Turn {turn.turnNo || idx + 1}
-                        </span>
+                        <div style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: '0.98rem', lineHeight: 1.6, color: 'var(--ink)' }}>
+                          {turn.text}
+                        </div>
                       </div>
-                      <div style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: '0.98rem', lineHeight: 1.6, color: 'var(--ink)' }}>
-                        {turn.text}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </motion.aside>
           </>
@@ -763,3 +742,5 @@ export default function VerdictStage({
     </div>
   );
 }
+
+export { VerdictStage };

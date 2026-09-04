@@ -17,36 +17,7 @@ import {
 import DebateHeader from './DebateHeader';
 import DeliberationLoadingScreen from './DeliberationLoadingScreen';
 
-const DEFAULT_TRANSCRIPT = [
-  {
-    id: 'turn-1',
-    turnNo: 1,
-    speaker: 'Alex',
-    side: 'for',
-    text: "Mr. Speaker, the modern digital public square is no longer merely a venue for recreational chatter—it is the operational infrastructure of democratic discourse. When platforms permit unfettered anonymity, they do not preserve liberty; they subsidize coordinated disinformation networks, algorithmic bot swarms, and bad-faith actors who poison our civic deliberations without consequence. Verified identity restores real reputational stakes to public speech."
-  },
-  {
-    id: 'turn-2',
-    turnNo: 2,
-    speaker: 'Sam',
-    side: 'against',
-    text: "The proposition's diagnosis conflates accountability with state surveillance. Throughout history, anonymous publication—from the Federalist Papers to contemporary dissidents under authoritarian regimes—has been the ultimate safeguard against reprisal by the powerful. Forcing citizens to surrender biometric identity or government credentials to private mega-platforms merely creates centralized honeypots for surveillance, while chilling whistleblowers and vulnerable minorities."
-  },
-  {
-    id: 'turn-3',
-    turnNo: 3,
-    speaker: 'Alex',
-    side: 'for',
-    text: "The opposition's appeal to the Federalist Papers ignores the asymmetry of the algorithmic era. Publius wrote under a pseudonym, but was published on physical printing presses subject to libel law and editorial friction. Today, automated bot farms weaponize anonymity at the speed of light. Verification does not require displaying real legal names publicly; it merely demands zero-knowledge cryptographic proof of unique personhood to extinguish synthetic bot manipulation."
-  },
-  {
-    id: 'turn-4',
-    turnNo: 4,
-    speaker: 'Sam',
-    side: 'against',
-    text: "Zero-knowledge protocols still require trust in state-issued credentials or biometric anchors that are routinely abused by despotic regimes to de-anonymize political opposition. If personhood verification is codified as a prerequisite for discourse, those denied credentials by corrupt or hostile authorities are functionally disenfranchised from public assembly."
-  }
-];
+const DEFAULT_TRANSCRIPT = [];
 
 function formatTimer(seconds) {
   const m = Math.floor(seconds / 60);
@@ -76,7 +47,9 @@ export function JuryScoringStage({
   onToggleTheme,
   onBackToDebate,
   onSubmitJudgement,
-  turns = DEFAULT_TRANSCRIPT
+  turns = DEFAULT_TRANSCRIPT,
+  gameMode = 'hotseat',
+  judgeCount = 1
 }) {
   const [scoreFor, setScoreFor] = useState(7);
   const [scoreAgainst, setScoreAgainst] = useState(6);
@@ -180,11 +153,12 @@ export function JuryScoringStage({
       {/* 1. Motion Banner Pinned At Top */}
       <DebateHeader
         roomCode={roomCode}
-        turnNo={4}
+        turnNo={turns.length || 1}
         theme={theme}
         onToggleTheme={onToggleTheme}
         motionText={motionText}
-        judgeCount={3}
+        judgeCount={judgeCount}
+        gameMode={gameMode}
       />
 
       {/* Navigation breadcrumb & Drawer Trigger */}

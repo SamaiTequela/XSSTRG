@@ -9,13 +9,13 @@ function formatSeconds(secs) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-export default function ChessClocks({
+export function ChessClocks({
   nameFor = 'Alex',
   nameAgainst = 'Sam',
-  remainingFor = 274, // in seconds
-  remainingAgainst = 241,
+  remainingFor = 300, // in seconds (5:00)
+  remainingAgainst = 300,
   activeSpeaker = 'for', // 'for' | 'against' | null
-  turnNo = 3,
+  turnNo = 1,
   prepUntil = null,
   isFlaggedFor = false,
   isFlaggedAgainst = false
@@ -363,3 +363,5 @@ export default function ChessClocks({
     </div>
   );
 }
+
+export default ChessClocks;

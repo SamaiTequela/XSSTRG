@@ -606,3 +606,5 @@ export default function SpeakingDispatch({
     </div>
   );
 }
+
+export { SpeakingDispatch };
