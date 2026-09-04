@@ -10,7 +10,8 @@ import {
   Eye,
   EyeOff,
   Clock, 
-  Sparkles 
+  Sparkles,
+  Home
 } from 'lucide-react';
 import { playClick } from '../../utils/soundEffects';
 
@@ -21,6 +22,7 @@ export function DebateHeader({
   theme = 'light',
   onToggleTheme,
   onReturnLobby,
+  showReturnButton = false, // show "Main Menu" link (verdict / scoring phases)
   gameMode = 'offline', // 'offline' | 'online' | 'jury' | 'hotseat'
   judgeMode = 'ai',     // 'ai' | 'crowd'
   judgeCount = 0,
@@ -184,6 +186,31 @@ export function DebateHeader({
                 }}
               />
             </div>
+          )}
+
+          {/* Return to Main Menu button (verdict / scoring phases only) */}
+          {showReturnButton && onReturnLobby && (
+            <button
+              onClick={() => { try { playClick(); } catch {} onReturnLobby(); }}
+              id="header-return-main-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'transparent',
+                border: '1px solid var(--line-strong)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '6px 12px',
+                color: 'var(--ink-secondary)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Return to Main Menu"
+            >
+              <Home size={13} />
+              Main Menu
+            </button>
           )}
 
           {/* Theme Switcher */}

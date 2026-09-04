@@ -17,6 +17,7 @@ import {
   Sparkles, 
   BookOpen, 
   ArrowRight,
+  Home,
   X
 } from 'lucide-react';
 import DebateHeader from './DebateHeader';
@@ -28,63 +29,64 @@ export default function VerdictStage({
   motionText,
   nameFor = 'Alex',
   nameAgainst = 'Sam',
-  roomCode = 'HY7X',
+  roomCode = '',
   theme = 'light',
   onToggleTheme,
   onNewDebate,
   onRematch,
+  onReturnToMain,
   turns = DEFAULT_TRANSCRIPT,
   verdict = null,
-  gameMode = 'hotseat',
+  gameMode = 'offline',
   judgeCount = 1
 }) {
   const [copied, setCopied] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [expandedPoints, setExpandedPoints] = useState({ 'prop-0': true, 'opp-0': true, 'prop-1': true, 'opp-1': true });
+  const [expandedPoints, setExpandedPoints] = useState({ 'prop-0': true, 'opp-0': true });
 
   useEffect(() => {
-    playGavel();
+    try { playGavel(); } catch {}
   }, []);
 
-  const winner = verdict?.winner || 'for';
+  const winner = verdict?.winner || 'draw';
   const isForWinner = winner === 'for';
   const isAgainstWinner = winner === 'against';
   const isDraw = winner === 'draw';
 
-  const scoreFor = verdict?.scores?.for ?? 7.5;
-  const scoreAgainst = verdict?.scores?.against ?? 7.0;
+  const scoreFor = verdict?.for?.score ?? verdict?.scores?.for ?? null;
+  const scoreAgainst = verdict?.against?.score ?? verdict?.scores?.against ?? null;
+  const hasScores = scoreFor !== null && scoreAgainst !== null;
 
-  const winnerHeadline = verdict?.headline || (isForWinner
-    ? `Proposition (${nameFor}) prevailed on core framework and substantive impacts.`
-    : (isDraw
-      ? "Chamber divided evenly on the balance of merits and refutations."
-      : `Opposition (${nameAgainst}) prevailed in refuting the proposition's case.`));
+  // Only show real AI-provided headline/rationale — no generic fallback fluff
+  const winnerHeadline = verdict?.headline || (
+    isDraw ? 'The chamber is deadlocked.'
+    : isForWinner ? `${nameFor} (Proposition) wins the debate.`
+    : `${nameAgainst} (Opposition) wins the debate.`
+  );
 
-  const winnerRationale = verdict?.rationale || (isForWinner
-    ? `The adjudicator found that ${nameFor} maintained consistent analytical clarity on the central clashes of the motion, offering stronger defense and clearer weighing against ${nameAgainst}'s challenges.`
-    : (isDraw
-      ? `Both speakers demonstrated formidable argumentation and evidence, resulting in an evenly split adjudication across the record.`
-      : `The adjudicator determined that ${nameAgainst} effectively countered the key contentions of the motion and sustained decisive rebuttal across the debate floor.`));
+  const winnerRationale = verdict?.rationale || null;
 
-  const forStrengths = verdict?.for?.strengths || [
-    { point: `Clear conceptual framing and rigorous defense of the affirmative motion.` }
-  ];
+  // Strengths & weaknesses — only real AI content, no defaults
+  const forStrengths = (verdict?.for?.strengths || []).filter(Boolean);
+  const forWeaknesses = (verdict?.for?.weaknesses || []).filter(Boolean);
+  const againstStrengths = (verdict?.against?.strengths || []).filter(Boolean);
+  const againstWeaknesses = (verdict?.against?.weaknesses || []).filter(Boolean);
 
-  const forWeaknesses = verdict?.for?.weaknesses || [
-    { point: `Could offer further comparative impact weighing against the opposition's alternatives.` }
-  ];
+  const hasForAnalysis = forStrengths.length > 0 || forWeaknesses.length > 0;
+  const hasAgainstAnalysis = againstStrengths.length > 0 || againstWeaknesses.length > 0;
 
-  const againstStrengths = verdict?.against?.strengths || [
-    { point: `Principled rebuttal challenging core premises and assumptions of the motion.` }
-  ];
+  // Juror scorecards: only show in crowd_jury mode with real data
+  const isCrowdJury = gameMode === 'crowd_jury';
+  const judgeBallots = (verdict?.individualScores || []).filter(j => j && (j.scoreFor !== undefined || j.scoreAgainst !== undefined));
+  const showJurorPanel = isCrowdJury && judgeBallots.length > 0;
 
-  const againstWeaknesses = verdict?.against?.weaknesses || [
-    { point: `Could sharpen counter-mechanisms to resolve the harms presented by the proposition.` }
-  ];
+  const handleNewDebate = () => { try { playClick(); } catch {} if (typeof onNewDebate === 'function') onNewDebate(); };
+  const handleRematch = () => { try { playClick(); } catch {} if (typeof onRematch === 'function') onRematch(); };
+  const handleReturnToMain = () => { try { playClick(); } catch {} if (typeof onReturnToMain === 'function') onReturnToMain(); else if (typeof onNewDebate === 'function') onNewDebate(); };
 
-  const judgeBallots = verdict?.individualScores || [
-    { judgeLabel: "AI Adjudicator", scoreFor: scoreFor, scoreAgainst: scoreAgainst, remarks: winnerRationale }
-  ];
+  const winColor = isForWinner ? 'var(--for)' : isDraw ? 'var(--brass)' : 'var(--against)';
+  const winBg    = isForWinner ? 'var(--for-bg)' : isDraw ? 'var(--brass-light, rgba(180,140,60,0.1))' : 'var(--against-bg)';
+  const winBorder= isForWinner ? 'var(--for-line)' : isDraw ? 'var(--line-strong)' : 'var(--against-line)';
 
   const togglePoint = (id) => {
     playClick();
@@ -92,8 +94,10 @@ export default function VerdictStage({
   };
 
   const handleCopyVerdict = () => {
-    playClick();
-    const summary = `POINT OF ORDER VERDICT\nMotion: "${motionText}"\nWinner: ${winner === 'draw' ? 'Draw' : (isForWinner ? `${nameFor} (Proposition)` : `${nameAgainst} (Opposition)`)}\nScore: ${nameFor} ${scoreFor} vs ${nameAgainst} ${scoreAgainst}\n\nRationale:\n${winnerRationale}`;
+    try { playClick(); } catch {}
+    const winnerLabel = isDraw ? 'Draw' : (isForWinner ? `${nameFor} (Proposition)` : `${nameAgainst} (Opposition)`);
+    const scoreStr = hasScores ? `\nScore: ${nameFor} ${scoreFor}/10 vs ${nameAgainst} ${scoreAgainst}/10` : '';
+    const summary = `POINT OF ORDER VERDICT\nMotion: "${motionText}"\nWinner: ${winnerLabel}${scoreStr}\n\n${winnerRationale || winnerHeadline}`;
     navigator.clipboard?.writeText(summary);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
@@ -101,15 +105,17 @@ export default function VerdictStage({
 
   return (
     <div className="debate-container verdict-screen" style={{ position: 'relative' }}>
-      {/* 1. Motion Banner Pinned At Top */}
+      {/* Header with Return to Main (verdict phase = non-active-debate) */}
       <DebateHeader
         roomCode={roomCode}
-        turnNo={turns.length || 1}
+        turnNo={turns.length || 0}
         theme={theme}
         onToggleTheme={onToggleTheme}
         motionText={motionText}
         judgeCount={judgeCount}
         gameMode={gameMode}
+        onReturnLobby={handleReturnToMain}
+        showReturnButton={true}
       />
 
       {/* Subheader & Quick Actions */}
@@ -117,28 +123,30 @@ export default function VerdictStage({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="role-pill brass">
             <Award size={13} />
-            ADJUDICATION VERDICT
+            VERDICT
           </span>
-          <span className="eyebrow">FINAL PHASE (5 OF 5)</span>
+          <span className="eyebrow">FINAL PHASE</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            id="verdict-open-record-btn"
-            className="btn-ghost"
-            style={{
-              padding: '7px 15px',
-              fontSize: '0.84rem',
-              borderColor: 'var(--brass)',
-              color: 'var(--brass)',
-              background: 'var(--brass-light)',
-              fontWeight: 700
-            }}
-          >
-            <BookOpen size={14} />
-            Read Full Record ({turns.length})
-          </button>
+          {turns.length > 0 && (
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              id="verdict-open-record-btn"
+              className="btn-ghost"
+              style={{
+                padding: '7px 15px',
+                fontSize: '0.84rem',
+                borderColor: 'var(--brass)',
+                color: 'var(--brass)',
+                background: 'var(--brass-light)',
+                fontWeight: 700
+              }}
+            >
+              <BookOpen size={14} />
+              Read Full Record ({turns.length})
+            </button>
+          )}
           <button
             onClick={handleCopyVerdict}
             id="copy-verdict-btn"
@@ -146,161 +154,156 @@ export default function VerdictStage({
             style={{ padding: '7px 14px', fontSize: '0.84rem' }}
           >
             {copied ? <Check size={14} color="var(--for)" /> : <Copy size={14} />}
-            {copied ? 'Copied' : 'Share Verdict'}
+            {copied ? 'Copied' : 'Share'}
           </button>
         </div>
       </div>
 
-      {/* 2. Official Winner Announcement Banner */}
+      {/* Winner Announcement Banner */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.98, y: 16 }}
+        initial={{ opacity: 0, scale: 0.97, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-        className="card-surface winner-banner"
+        transition={{ type: 'spring', stiffness: 340, damping: 26 }}
         style={{
-          padding: 'clamp(28px, 4vw, 44px) clamp(20px, 4vw, 36px)',
+          padding: 'clamp(24px, 4vw, 40px) clamp(20px, 4vw, 36px)',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '14px',
-          background: 'linear-gradient(180deg, var(--for-bg) 0%, var(--surface) 100%)',
-          border: '2px solid var(--for-line)',
+          background: `linear-gradient(160deg, ${winBg} 0%, var(--surface) 100%)`,
+          border: `2px solid ${winBorder}`,
           borderRadius: 'var(--radius-lg)',
           boxShadow: 'var(--shadow-md)',
           position: 'relative',
           overflow: 'hidden'
         }}
       >
-        {/* Top Trophy Crest */}
+        {/* Trophy */}
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', delay: 0.15, stiffness: 420, damping: 22 }}
+          initial={{ scale: 0, rotate: -15 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', delay: 0.12, stiffness: 400, damping: 20 }}
           style={{
             width: '64px',
             height: '64px',
             borderRadius: '50%',
-            background: 'var(--for)',
+            background: winColor,
             color: '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 24px var(--for-glow)'
+            boxShadow: '0 8px 28px rgba(0,0,0,0.25)'
           }}
         >
-          <Trophy size={32} />
-        </motion.div>
-
+          <Trophy size={30} />
+        </motion.div>        {/* Decision */}
         <div>
-          <div className="eyebrow" style={{ color: isForWinner ? 'var(--for)' : (isDraw ? 'var(--brass)' : 'var(--against)'), letterSpacing: '0.16em', marginBottom: '6px' }}>
-            PARLIAMENTARY ADJUDICATION • AI ADJUDICATOR &amp; JURY
+          <div className="eyebrow" style={{ color: winColor, letterSpacing: '0.16em', marginBottom: '6px' }}>
+            {isCrowdJury ? 'CROWD JURY VERDICT' : 'AI ADJUDICATOR VERDICT'}
           </div>
           <h2
             style={{
               fontFamily: 'Bricolage Grotesque',
-              fontSize: 'clamp(2rem, 5.5vw, 3.4rem)',
+              fontSize: 'clamp(1.9rem, 5vw, 3.1rem)',
               fontWeight: 900,
-              color: isForWinner ? 'var(--for-strong)' : (isDraw ? 'var(--brass)' : 'var(--against-strong)'),
+              color: winColor,
               lineHeight: 1.05,
               letterSpacing: '-0.025em'
             }}
           >
-            {isDraw ? 'Chamber Declares a Deadlock (Draw)' : (isForWinner ? 'Decision for the Proposition' : 'Decision for the Opposition')}
+            {isDraw ? 'Draw — Chamber Deadlocked' : isForWinner ? 'Decision for the Proposition' : 'Decision for the Opposition'}
           </h2>
-          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-            <span
-              style={{
-                fontFamily: 'Bricolage Grotesque',
-                fontSize: '1.35rem',
-                fontWeight: 800,
-                color: 'var(--ink)'
-              }}
-            >
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.3rem', fontWeight: 800, color: 'var(--ink)' }}>
               {isDraw ? 'Both Debaters' : (isForWinner ? nameFor : nameAgainst)}
             </span>
-            <span className={`role-pill ${isForWinner ? 'for' : (isDraw ? 'brass' : 'against')}`}>
+            <span className={`role-pill ${isForWinner ? 'for' : isDraw ? 'brass' : 'against'}`}>
               {isDraw ? 'TIE' : (isForWinner ? 'PROPOSITION' : 'OPPOSITION')}
             </span>
-            <span
-              className="font-mono"
-              style={{
-                background: 'var(--surface)',
-                border: `1px solid ${isForWinner ? 'var(--for-line)' : (isDraw ? 'var(--brass-line)' : 'var(--against-line)')}`,
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-pill)',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                color: isForWinner ? 'var(--for)' : (isDraw ? 'var(--brass)' : 'var(--against)')
-              }}
-            >
-              Scores: {nameFor} {scoreFor} vs {nameAgainst} {scoreAgainst}
-            </span>
+            {hasScores && (
+              <span
+                className="font-mono"
+                style={{
+                  background: 'var(--surface)',
+                  border: `1px solid ${winBorder}`,
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-pill)',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: winColor
+                }}
+              >
+                {nameFor} {scoreFor} — {nameAgainst} {scoreAgainst}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Verdict Rationale & Headline Summary */}
         <p
           style={{
             fontFamily: 'Bricolage Grotesque',
-            fontSize: 'clamp(1.08rem, 2.2vw, 1.3rem)',
+            fontSize: 'clamp(1rem, 2.2vw, 1.25rem)',
             fontWeight: 600,
             color: 'var(--ink)',
-            maxWidth: '56ch',
+            maxWidth: '58ch',
             lineHeight: 1.35,
-            margin: '6px auto 0'
+            margin: '4px auto 0'
           }}
         >
           {winnerHeadline}
         </p>
 
-        <p
-          style={{
-            fontFamily: 'Newsreader, Georgia, serif',
-            fontSize: '1rem',
-            lineHeight: 1.6,
-            color: 'var(--ink-secondary)',
-            maxWidth: '64ch',
-            margin: '0 auto'
-          }}
-        >
-          {winnerRationale}
-        </p>
+        {winnerRationale && (
+          <p
+            style={{
+              fontFamily: 'Newsreader, Georgia, serif',
+              fontSize: '0.98rem',
+              lineHeight: 1.65,
+              color: 'var(--ink-secondary)',
+              maxWidth: '64ch',
+              margin: '0 auto'
+            }}
+          >
+            {winnerRationale}
+          </p>
+        )}
 
-        {/* Score Comparison Medallion */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '24px',
-            marginTop: '8px',
-            padding: '12px 28px',
-            borderRadius: 'var(--radius-pill)',
-            background: 'var(--surface)',
-            border: '1px solid var(--line-strong)',
-            boxShadow: 'var(--shadow-sm)'
-          }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div className="eyebrow" style={{ color: 'var(--for)', fontSize: '0.64rem' }}>PROPOSITION ({nameFor})</div>
-            <strong className="font-mono" style={{ fontSize: '1.4rem', color: 'var(--for)' }}>{scoreFor}</strong>
+        {/* Score Medallion — only when AI returned scores */}
+        {hasScores && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '24px',
+              padding: '12px 28px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--surface)',
+              border: '1px solid var(--line-strong)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <div className="eyebrow" style={{ color: 'var(--for)', fontSize: '0.62rem' }}>PROPOSITION ({nameFor})</div>
+              <strong className="font-mono" style={{ fontSize: '1.5rem', color: 'var(--for)' }}>{scoreFor}</strong>
+              <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>/10</span>
+            </div>
+            <div style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '0.85rem', color: 'var(--brass)' }}>VS</div>
+            <div style={{ textAlign: 'center' }}>
+              <div className="eyebrow" style={{ color: 'var(--against)', fontSize: '0.62rem' }}>OPPOSITION ({nameAgainst})</div>
+              <strong className="font-mono" style={{ fontSize: '1.5rem', color: 'var(--against)' }}>{scoreAgainst}</strong>
+              <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>/10</span>
+            </div>
           </div>
-          <div style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '0.9rem', color: 'var(--brass)' }}>
-            VS
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div className="eyebrow" style={{ color: 'var(--against)', fontSize: '0.64rem' }}>OPPOSITION ({nameAgainst})</div>
-            <strong className="font-mono" style={{ fontSize: '1.4rem', color: 'var(--against)' }}>{scoreAgainst}</strong>
-          </div>
-        </div>
+        )}
       </motion.div>
 
-      {/* 3. Key Clashes & Arguments Breakdown */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Speaker Assessment — only rendered when AI provided real analysis */}
+      {(hasForAnalysis || hasAgainstAnalysis) && (<div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Sparkles size={16} color="var(--brass)" />
-          <h3 style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.25rem', fontWeight: 800, color: 'var(--ink)' }}>
-            Key Clashes &amp; Speaker Assessment
+          <h3 style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.2rem', fontWeight: 800, color: 'var(--ink)' }}>
+            Speaker Assessment
           </h3>
         </div>
 
@@ -313,7 +316,7 @@ export default function VerdictStage({
           }}
         >
           {/* Proposition Assessment Card */}
-          <div
+          {hasForAnalysis && <div
             className="card-surface"
             style={{
               padding: 'clamp(18px, 3vw, 26px)',
@@ -416,10 +419,10 @@ export default function VerdictStage({
                 ))}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Opposition Assessment Card */}
-          <div
+          {hasAgainstAnalysis && <div
             className="card-surface"
             style={{
               padding: 'clamp(18px, 3vw, 26px)',
@@ -522,20 +525,20 @@ export default function VerdictStage({
                 ))}
               </div>
             </div>
-          </div>
+          </div>}
         </div>
-      </div>
+      </div>)}
 
-      {/* 4. Anonymous Jury Panel Breakdown */}
-      <div className="card-surface" style={{ padding: 'clamp(18px, 2.5vw, 24px)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Juror Scorecards — ONLY in crowd_jury mode with real votes */}
+      {showJurorPanel && <div className="card-surface" style={{ padding: 'clamp(16px, 2.5vw, 22px)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Users size={16} color="var(--brass)" />
-            <h3 style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)' }}>
-              Anonymous Juror Scorecards
+            <h3 style={{ fontFamily: 'Bricolage Grotesque', fontSize: '1.1rem', fontWeight: 800, color: 'var(--ink)' }}>
+              Juror Scorecards
             </h3>
           </div>
-          <span className="eyebrow">{judgeBallots.length} ADJUDICATORS RECORDED</span>
+          <span className="eyebrow">{judgeBallots.length} JURORS</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -575,45 +578,50 @@ export default function VerdictStage({
             );
           })}
         </div>
-      </div>
+      </div>}
 
-      {/* 5. Post-Debate Chamber Action Bar */}
+      {/* Action Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexWrap: 'wrap',
-          gap: '14px',
-          padding: '24px 20px',
+          gap: '12px',
+          padding: '22px 20px',
           background: 'var(--chamber)',
           border: '1px solid var(--line)',
           borderRadius: 'var(--radius-lg)'
         }}
       >
         <button
-          onClick={onNewDebate}
-          id="start-new-debate-btn"
-          className="btn-primary"
-          style={{
-            padding: '13px 26px',
-            fontSize: '1rem',
-            background: 'var(--ink)',
-            color: 'var(--ground)'
-          }}
+          onClick={handleReturnToMain}
+          id="return-to-main-btn"
+          className="btn-ghost"
+          style={{ padding: '11px 20px', fontSize: '0.95rem' }}
         >
-          <span>Start a New Debate</span>
-          <ArrowRight size={16} />
+          <Home size={15} />
+          <span>Main Menu</span>
         </button>
 
         <button
-          onClick={onRematch}
+          onClick={handleRematch}
           id="rematch-btn"
           className="btn-ghost"
-          style={{ padding: '12px 22px', fontSize: '0.96rem' }}
+          style={{ padding: '11px 20px', fontSize: '0.95rem' }}
         >
           <RotateCcw size={15} />
-          <span>Rematch with Same Motion</span>
+          <span>Rematch</span>
+        </button>
+
+        <button
+          onClick={handleNewDebate}
+          id="start-new-debate-btn"
+          className="btn-primary"
+          style={{ padding: '12px 26px', fontSize: '1rem', background: 'var(--ink)', color: 'var(--ground)' }}
+        >
+          <span>New Debate</span>
+          <ArrowRight size={16} />
         </button>
       </div>
 

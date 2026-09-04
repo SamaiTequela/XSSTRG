@@ -500,6 +500,7 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           onBackToDebate={() => setPhase('debate')}
           onSubmitJudgement={handleSubmitJudgement}
+          onReturnToMain={() => setPhase('lobby')}
           turns={roomSync.roomState.transcript || []}
           gameMode={gameMode}
         />
@@ -514,6 +515,7 @@ export default function App() {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onNewDebate={() => setPhase('lobby')}
+          onReturnToMain={() => setPhase('lobby')}
           onRematch={() => {
             roomSync.resetDebateState?.({
               remainingFor: initialSeconds,

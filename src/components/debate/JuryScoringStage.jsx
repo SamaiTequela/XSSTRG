@@ -49,6 +49,7 @@ export function JuryScoringStage({
   onToggleTheme,
   onBackToDebate,
   onSubmitJudgement,
+  onReturnToMain,
   turns = DEFAULT_TRANSCRIPT,
   gameMode = 'hotseat',
   judgeCount = 1
@@ -161,6 +162,8 @@ export function JuryScoringStage({
         motionText={motionText}
         judgeCount={judgeCount}
         gameMode={gameMode}
+        onReturnLobby={onReturnToMain}
+        showReturnButton={!!onReturnToMain}
       />
 
       {/* Navigation breadcrumb & Drawer Trigger */}
