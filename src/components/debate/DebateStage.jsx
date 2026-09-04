@@ -104,6 +104,30 @@ export function DebateStage({
     return () => clearInterval(timer);
   }, [activeSpeaker, prepSeconds]);
 
+  // Turn handoff if active speaker clock flags out but opponent still has time
+  useEffect(() => {
+    if (prepSeconds > 0) return;
+    if (activeSpeaker === 'for' && remainingFor === 0 && remainingAgainst > 0) {
+      if (roomSync) {
+        roomSync.setRoomState((prev) => ({ ...prev, activeSpeaker: 'against' }));
+      }
+    } else if (activeSpeaker === 'against' && remainingAgainst === 0 && remainingFor > 0) {
+      if (roomSync) {
+        roomSync.setRoomState((prev) => ({ ...prev, activeSpeaker: 'for' }));
+      }
+    }
+  }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync]);
+
+  // Auto-conclude debate when both chess clocks expire
+  useEffect(() => {
+    if (remainingFor === 0 && remainingAgainst === 0 && turns.length > 0) {
+      const autoEndTimer = setTimeout(() => {
+        handleRequestEnd();
+      }, 1200);
+      return () => clearTimeout(autoEndTimer);
+    }
+  }, [remainingFor, remainingAgainst, turns.length]);
+
   // Submitting a turn
   const handleSubmitTurn = (text) => {
     const currentName = activeSpeaker === 'for' ? nameFor : nameAgainst;
@@ -146,8 +170,8 @@ export function DebateStage({
 
   const handleSkipPrep = () => {
     playClick();
-    // Strict permission check: only active speaker can skip prep and force-start turn
-    if (effectiveRole !== activeSpeaker) {
+    // Strict permission check: only active speaker can skip prep and force-start turn (in offline, both players share device)
+    if (!isOffline && effectiveRole !== activeSpeaker) {
       console.warn(`[SECURITY GUARD] Rejected unauthorized prep skip attempt by '${effectiveRole}'. Active speaker is '${activeSpeaker}'.`);
       return;
     }
@@ -301,7 +325,7 @@ export function DebateStage({
             prepSecondsLeft={prepSeconds}
             speakerName={activeSpeaker === 'for' ? nameFor : nameAgainst}
             side={activeSpeaker}
-            userRole={effectiveRole}
+            userRole={isOffline ? activeSpeaker : effectiveRole}
             onSkipPrep={handleSkipPrep}
           />
         )}

@@ -310,19 +310,37 @@ export default function App() {
     if (!isOnlineMode || !roomCode || phase === 'lobby') return;
     const remotePhase = roomSync.roomState?.phase;
     if (!remotePhase) return; // null = not yet initialised, ignore
+
     if (remotePhase !== phase) {
       if (remotePhase === 'debate' && (phase === 'room_lobby' || phase === 'lobby')) {
         transitionToPhase('transition');
       } else if (remotePhase === 'verdict') {
         transitionToPhase('verdict');
+      } else if (remotePhase === 'scoring') {
+        transitionToPhase('scoring');
+      } else if (remotePhase === 'review' || remotePhase === 'judging') {
+        // Debate concluded on server
+        if (gameMode === 'crowd_jury') {
+          transitionToPhase('scoring');
+        } else {
+          const isHost = roomSync.serverView?.you?.isHost ?? (userRole === 'for');
+          if (isHost && !isAdjudicating && !verdict) {
+            handleTriggerAdjudication();
+          } else if (!isHost && phase !== 'deliberating' && !verdict) {
+            transitionToPhase('deliberating');
+          }
+        }
       } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
         transitionToPhase('room_lobby');
       }
     }
     if (roomSync.roomState?.verdict) {
       setVerdict(roomSync.roomState.verdict);
+      if (phase !== 'verdict') {
+        transitionToPhase('verdict');
+      }
     }
-  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode, roomCode, transitionToPhase]);
+  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode, roomCode, transitionToPhase, gameMode, isAdjudicating, verdict, handleTriggerAdjudication, roomSync.serverView?.you?.isHost, userRole]);
 
   const handlePhaseChange = (nextPhase) => {
     setPhase(nextPhase);
@@ -367,47 +385,45 @@ export default function App() {
       transitionToPhase('transition');
     } else {
       // Online Chamber or Crowd Jury: Create or Join backend room and enter waiting lobby
-      try {
-        if (chosenAction === 'join') {
-          const view = await joinOnlineRoom({
-            code: chosenCode,
-            name,
-            role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'player') : 'player',
-            seat: role === 'for' || role === 'against' ? role : null
-          });
-          if (view) {
-            roomSync.syncServerView?.(view);
-            if (view.you?.side) {
-              setUserRole(view.you.side);
-              const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
-              if (myAssignedName) setUserName(myAssignedName);
-            } else if (view.you?.isSpectator) {
-              setUserRole('judge');
-              if (view.you.spectatorName) setUserName(view.you.spectatorName);
-            }
-          }
-        } else {
-          const view = await createOnlineRoom({
-            code: chosenCode,
-            name,
-            motion,
-            perSecs: secs,
-            judgeMode: mode === 'crowd_jury',
-            role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'for') : role
-          });
-          if (view) {
-            roomSync.syncServerView?.(view);
-            if (view.you?.side) {
-              setUserRole(view.you.side);
-              const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
-              if (myAssignedName) setUserName(myAssignedName);
-            } else if (view.you?.isSpectator) {
-              setUserRole('judge');
-            }
-          }
+      if (chosenAction === 'join') {
+        const view = await joinOnlineRoom({
+          code: chosenCode,
+          name,
+          role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'player') : 'player',
+          seat: role === 'for' || role === 'against' ? role : null
+        });
+        if (!view) {
+          throw new Error('Could not join room. Please check the room code.');
         }
-      } catch (err) {
-        console.warn('Room enter API call warning:', err);
+        roomSync.syncServerView?.(view);
+        if (view.you?.side) {
+          setUserRole(view.you.side);
+          const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
+          if (myAssignedName) setUserName(myAssignedName);
+        } else if (view.you?.isSpectator) {
+          setUserRole('judge');
+          if (view.you.spectatorName) setUserName(view.you.spectatorName);
+        }
+      } else {
+        const view = await createOnlineRoom({
+          code: chosenCode,
+          name,
+          motion,
+          perSecs: secs,
+          judgeMode: mode === 'crowd_jury',
+          role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'for') : role
+        });
+        if (!view) {
+          throw new Error('Could not create room. Please try again.');
+        }
+        roomSync.syncServerView?.(view);
+        if (view.you?.side) {
+          setUserRole(view.you.side);
+          const myAssignedName = view.you.side === 'for' ? view.seats?.for?.name : view.seats?.against?.name;
+          if (myAssignedName) setUserName(myAssignedName);
+        } else if (view.you?.isSpectator) {
+          setUserRole('judge');
+        }
       }
 
       transitionToPhase('room_lobby');

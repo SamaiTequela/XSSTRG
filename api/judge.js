@@ -9,10 +9,10 @@ const GEMINI_API_KEY =
 
 // Available models in priority order for resilience
 const MODELS = [
-  "gemini-flash-lite-latest",
-  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
   "gemini-flash-latest",
-  "gemini-pro-latest",
 ];
 
 // --- basic per-IP rate limit (best-effort; resets when the function cold-starts) ---

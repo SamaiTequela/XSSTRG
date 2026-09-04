@@ -124,7 +124,15 @@ export function ParlourLobby({
     setIsEditingMotion(false);
   };
 
-  const handleStart = (e) => {
+  const handleSpeakerNameChange = (val) => {
+    const clean = val.slice(0, 24);
+    setSpeakerName(clean);
+    try {
+      localStorage.setItem('point_of_order_username', clean);
+    } catch {}
+  };
+
+  const handleStart = async (e) => {
     e?.preventDefault();
     playClick();
     setLobbyError('');
@@ -147,18 +155,24 @@ export function ParlourLobby({
       }
     }
 
-    onEnterChamber({
-      mode,
-      action: onlineAction,
-      motion: motionText,
-      role: resolvedRole,
-      name: mode === 'offline' ? nameFor : (speakerName.trim() || 'Speaker'),
-      nameFor: nameFor.trim() || 'Alex',
-      nameAgainst: nameAgainst.trim() || 'Sam',
-      remainingSeconds: timeMinutes * 60,
-      roomCode: effectiveCode || generateRandomRoomCode(),
-      hideRoomCode
-    });
+    try {
+      if (typeof onEnterChamber === 'function') {
+        await onEnterChamber({
+          mode,
+          action: onlineAction,
+          motion: motionText,
+          role: resolvedRole,
+          name: mode === 'offline' ? nameFor : (speakerName.trim() || 'Speaker'),
+          nameFor: nameFor.trim() || 'Alex',
+          nameAgainst: nameAgainst.trim() || 'Sam',
+          remainingSeconds: timeMinutes * 60,
+          roomCode: effectiveCode || generateRandomRoomCode(),
+          hideRoomCode
+        });
+      }
+    } catch (err) {
+      setLobbyError(err?.message || 'Failed to enter chamber. Please check code or try again.');
+    }
   };
 
   return (
@@ -517,7 +531,7 @@ export function ParlourLobby({
                 type="text"
                 id="speaker-name-input"
                 value={speakerName}
-                onChange={(e) => setSpeakerName(e.target.value.slice(0, 24))}
+                onChange={(e) => handleSpeakerNameChange(e.target.value)}
                 placeholder="e.g. Alex"
                 style={{
                   padding: '11px 14px',
@@ -607,7 +621,7 @@ export function ParlourLobby({
                 type="text"
                 id="speaker-name-input"
                 value={speakerName}
-                onChange={(e) => setSpeakerName(e.target.value.slice(0, 24))}
+                onChange={(e) => handleSpeakerNameChange(e.target.value)}
                 placeholder="e.g. Juror 1"
                 style={{
                   padding: '11px 14px',
