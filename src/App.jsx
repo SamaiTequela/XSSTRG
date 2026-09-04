@@ -167,12 +167,14 @@ export default function App() {
     }
   }, [roomSync.serverView]);
 
-  // Sync remote phase changes
+  // Sync remote phase changes — ONLY in online modes.
+  // In offline mode roomSync.roomState.phase can linger at 'verdict', which
+  // would override the user navigating away (Main Menu / New Debate / Rematch).
   useEffect(() => {
+    if (!isOnlineMode) return; // offline: local phase is authoritative
     const remotePhase = roomSync.roomState?.phase;
     if (remotePhase && remotePhase !== phase) {
       if (remotePhase === 'debate' && phase === 'room_lobby') {
-        // Trigger transition screen
         setPhase('transition');
       } else if (remotePhase === 'verdict') {
         setPhase('verdict');
@@ -181,7 +183,7 @@ export default function App() {
     if (roomSync.roomState?.verdict) {
       setVerdict(roomSync.roomState.verdict);
     }
-  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase]);
+  }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode]);
 
   const handlePhaseChange = (nextPhase) => {
     setPhase(nextPhase);
@@ -266,6 +268,24 @@ export default function App() {
 
     try {
       const activeTurns = roomSync.roomState.transcript || [];
+
+      // Guard: if nobody actually typed anything, skip the AI entirely.
+      // Sending an empty transcript causes the model to hallucinate speeches.
+      const hasRealContent = activeTurns.some(t => t.text && t.text.trim().length > 0);
+      if (!hasRealContent) {
+        await new Promise(resolve => setTimeout(resolve, 1800)); // brief deliberation delay
+        handleSubmitJudgement({
+          winner: 'draw',
+          headline: 'No speeches were delivered.',
+          rationale: null,
+          scores: null,
+          for: { score: null, strengths: [], weaknesses: [] },
+          against: { score: null, strengths: [], weaknesses: [] },
+          individualScores: []
+        });
+        return;
+      }
+
       const fetchPromise = fetch('/api/adjudicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
