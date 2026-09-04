@@ -1,0 +1,108 @@
+:root {
+  /* Chamber Ground & Surfaces (Light Mode) */
+  --ground: #f4f3ef;
+  --chamber: #eae9e1;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-overlay: rgba(255, 255, 255, 0.85);
+  
+  /* Ink & Text */
+  --ink: #14151a;
+  --ink-secondary: #525363;
+  --ink-muted: #7c7d8f;
+  --ink-faint: #a8a9ba;
+  
+  /* Borders & Dividers */
+  --line-subtle: #e6e5dd;
+  --line: #dad9cf;
+  --line-strong: #c2c1b4;
+  
+  /* Parliamentary Accents */
+  --brass: #9c7726;
+  --brass-light: #f7f1e2;
+  --brass-glow: rgba(156, 119, 38, 0.16);
+  --accent: #2e2f80;
+  --accent-light: #ececfb;
+  --accent-ink: #ffffff;
+
+  /* Proposition (For the Motion) */
+  --for: #0b7a62;
+  --for-glow: rgba(11, 122, 98, 0.18);
+  --for-bg: #e5f3ee;
+  --for-bg-subtle: #f2f9f6;
+  --for-line: #9cd3c3;
+  --for-strong: #085a49;
+
+  /* Opposition (Against the Motion) */
+  --against: #b83d28;
+  --against-glow: rgba(184, 61, 40, 0.18);
+  --against-bg: #f9e8e4;
+  --against-bg-subtle: #fcf4f2;
+  --against-line: #e8b6aa;
+  --against-strong: #8c2e1d;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(18, 19, 26, 0.04), 0 2px 4px rgba(18, 19, 26, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(18, 19, 26, 0.08), 0 2px 6px -1px rgba(18, 19, 26, 0.05);
+  --shadow-lg: 0 12px 32px -8px rgba(18, 19, 26, 0.14), 0 4px 12px -2px rgba(18, 19, 26, 0.06);
+  --shadow-active-for: 0 0 0 2px var(--for), 0 8px 24px -4px var(--for-glow);
+  --shadow-active-against: 0 0 0 2px var(--against), 0 8px 24px -4px var(--against-glow);
+
+  /* Layout & Sizing */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 9999px;
+  --header-height: 64px;
+}
+
+[data-theme="dark"] {
+  /* Chamber Ground & Surfaces (Dark Mode) */
+  --ground: #0e0f14;
+  --chamber: #14151c;
+  --surface: #1a1b24;
+  --surface-raised: #22232f;
+  --surface-overlay: rgba(26, 27, 36, 0.88);
+  
+  /* Ink & Text */
+  --ink: #f3f3f0;
+  --ink-secondary: #a9aab9;
+  --ink-muted: #7e7f91;
+  --ink-faint: #4e4f60;
+  
+  /* Borders & Dividers */
+  --line-subtle: #242531;
+  --line: #2e3040;
+  --line-strong: #404359;
+  
+  /* Parliamentary Accents */
+  --brass: #d4a948;
+  --brass-light: #2c2515;
+  --brass-glow: rgba(212, 169, 72, 0.22);
+  --accent: #9f9ef7;
+  --accent-light: #1e1e3b;
+  --accent-ink: #0e0f14;
+
+  /* Proposition (For the Motion) */
+  --for: #38c2a3;
+  --for-glow: rgba(56, 194, 163, 0.22);
+  --for-bg: #0f2b24;
+  --for-bg-subtle: #0a1e19;
+  --for-line: #1c5244;
+  --for-strong: #5be0c3;
+
+  /* Opposition (Against the Motion) */
+  --against: #f06a51;
+  --against-glow: rgba(240, 106, 81, 0.22);
+  --against-bg: #351713;
+  --against-bg-subtle: #24100d;
+  --against-line: #612c23;
+  --against-strong: #ff8c76;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 16px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 36px -6px rgba(0, 0, 0, 0.65);
+  --shadow-active-for: 0 0 0 2px var(--for), 0 0 24px var(--for-glow);
+  --shadow-active-against: 0 0 0 2px var(--against), 0 0 24px var(--against-glow);
+}

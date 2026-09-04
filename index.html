@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Point of Order — Active Debate</title>
+    <meta name="description" content="High-stakes two-player timed debate game judged by an AI adjudicator or crowd jury." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- File Protocol Fallback Notice -->
+    <div id="file-protocol-notice" style="display: none; padding: 40px 24px; font-family: system-ui, sans-serif; text-align: center; max-width: 600px; margin: 80px auto; background: #ffffff; border: 1px solid #dad9cf; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+      <div style="font-size: 40px; margin-bottom: 12px;">⚖️</div>
+      <h2 style="margin-bottom: 8px; font-size: 24px; color: #14151a;">Vite Dev Server Active</h2>
+      <p style="color: #525363; font-size: 16px; line-height: 1.5; margin-bottom: 24px;">
+        React &amp; Motion applications require a development server and cannot run directly via <code style="background: #f4f3ef; padding: 2px 6px; border-radius: 4px;">file:///</code>.
+      </p>
+      <a href="http://localhost:5173/" style="display: inline-block; background: #14151a; color: #ffffff; padding: 12px 24px; border-radius: 10px; font-weight: 600; text-decoration: none; font-size: 16px;">
+        Open http://localhost:5173/ →
+      </a>
+    </div>
+
+    <script>
+      if (window.location.protocol === 'file:') {
+        document.getElementById('file-protocol-notice').style.display = 'block';
+      }
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
