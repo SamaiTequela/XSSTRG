@@ -22,17 +22,117 @@ import {
 
 const isDev = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') || Boolean(import.meta.env?.DEV);
 
+const COMMON_WORDS = new Set([
+  'the','be','to','of','and','a','in','that','have','i','it','for','not','on','with','he','as','you','do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all','would','there','their','what','so','up','out','if','about','who','get','which','go','me','when','make','can','like','time','no','just','him','know','take','people','into','year','your','good','some','could','them','see','other','than','then','now','look','only','come','its','over','think','also','back','after','use','two','how','our','work','first','well','way','even','new','want','because','any','these','give','day','most','us','should','social','media','government','argue','argument','motion','point','against','agree','disagree','believe','evidence','reason','claim','rebuttal','policy','right','law','state','world','public','country','problem','need'
+]);
+
+function isSubstantiveSpeech(text) {
+  if (!text || typeof text !== 'string') return false;
+  const cleaned = text.trim();
+  if (cleaned.length < 3) return false;
+
+  const words = cleaned.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+  if (words.length === 1 && words[0].length > 14) return false;
+
+  let recognized = 0;
+  for (const w of words) {
+    const s = w.replace(/[^a-z]/g, '');
+    if (COMMON_WORDS.has(s)) {
+      recognized++;
+    } else if (s.length >= 3 && s.length <= 13 && /[aeiouy]/.test(s) && !/([a-z])\1{2,}/.test(s)) {
+      recognized++;
+    }
+  }
+
+  return words.length >= 2
+    ? (recognized / words.length >= 0.35 && recognized >= 2)
+    : (recognized === 1 && COMMON_WORDS.has(words[0]));
+}
+
 function generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript = [] }) {
   const forRemarks = transcript.filter((t) => t.side === 'for');
   const againstRemarks = transcript.filter((t) => t.side === 'against');
+
+  const forSubstantive = forRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+  const againstSubstantive = againstRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+
+  // Case 1: Both entered gibberish or empty speeches
+  if (!forSubstantive && !againstSubstantive) {
+    return {
+      winner: 'draw',
+      winnerName: 'Draw',
+      headline: 'No substantive debate took place.',
+      rationale: `Neither speaker placed coherent, substantive arguments on the record regarding "${motion}". Without intelligible claims or reasoned clash, no points can be awarded.`,
+      scores: { for: 0, against: 0 },
+      for: {
+        score: 0,
+        strengths: [],
+        weaknesses: ['Delivered unintelligible or nonsensical remarks', 'Did not advance arguments on the motion'],
+        advice: 'Open with a clear proposition claim and provide at least one supporting reason.'
+      },
+      against: {
+        score: 0,
+        strengths: [],
+        weaknesses: ['Delivered unintelligible or nonsensical remarks', 'Did not advance counterarguments on the motion'],
+        advice: 'Deliver a structured speech directly countering the opposing claims.'
+      }
+    };
+  }
+
+  // Case 2: Only Proposition gave a substantive speech
+  if (forSubstantive && !againstSubstantive) {
+    return {
+      winner: 'for',
+      winnerName: nameFor,
+      headline: `${nameFor} carries the motion uncontested.`,
+      rationale: `${nameFor} put forward an intelligible case on the motion, while ${nameAgainst} failed to provide coherent counter-arguments or clash.`,
+      scores: { for: 8, against: 0 },
+      for: {
+        score: 8,
+        strengths: ['Delivered an intelligible constructive argument on the motion'],
+        weaknesses: ['Could develop deeper impact analysis'],
+        advice: 'Continue establishing clear constructive points.'
+      },
+      against: {
+        score: 0,
+        strengths: [],
+        weaknesses: ['Failed to present coherent arguments or rebuttal'],
+        advice: 'Provide structured counter-arguments directly engaging with the motion.'
+      }
+    };
+  }
+
+  // Case 3: Only Opposition gave a substantive speech
+  if (!forSubstantive && againstSubstantive) {
+    return {
+      winner: 'against',
+      winnerName: nameAgainst,
+      headline: `${nameAgainst} carries the debate uncontested.`,
+      rationale: `${nameAgainst} presented coherent points against the motion, while ${nameFor} failed to put forward an intelligible constructive case.`,
+      scores: { for: 0, against: 8 },
+      for: {
+        score: 0,
+        strengths: [],
+        weaknesses: ['Failed to present coherent proposition arguments'],
+        advice: 'Open with a clear claim explaining why the motion should be adopted.'
+      },
+      against: {
+        score: 8,
+        strengths: ['Delivered substantive counterarguments on the floor'],
+        weaknesses: ['Could expand comparative impacts'],
+        advice: 'Continue pressing on practical and empirical objections.'
+      }
+    };
+  }
+
+  // Case 4: Both gave substantive speeches
   const forWords = forRemarks.reduce((acc, t) => acc + (t.text || '').split(/\s+/).filter(Boolean).length, 0);
   const againstWords = againstRemarks.reduce((acc, t) => acc + (t.text || '').split(/\s+/).filter(Boolean).length, 0);
 
   let winner = 'draw';
-  if (forRemarks.length > 0 && againstRemarks.length === 0) winner = 'for';
-  else if (againstRemarks.length > 0 && forRemarks.length === 0) winner = 'against';
-  else if (forWords > againstWords * 1.2) winner = 'for';
-  else if (againstWords > forWords * 1.2) winner = 'against';
+  if (forWords > againstWords * 1.3) winner = 'for';
+  else if (againstWords > forWords * 1.3) winner = 'against';
 
   const winnerName = winner === 'for' ? nameFor : winner === 'against' ? nameAgainst : 'Draw';
   const scoreFor = winner === 'for' ? 8 : winner === 'draw' ? 7 : 6;
@@ -41,20 +141,20 @@ function generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript = []
   return {
     winner,
     winnerName,
-    headline: winner === 'draw' ? 'The chamber concludes in a deadlock.' : `${winnerName} carries the motion.`,
-    rationale: `The debate featured extensive clash over "${motion}". On the balance of substantive rebuttal and argumentation, ${winner === 'draw' ? 'both benches presented equally balanced cases.' : `${winnerName} demonstrated superior framing and sustained clash on the central resolution.`}`,
+    headline: winner === 'draw' ? 'A dead heat on the central clash.' : `${winnerName} carries the motion on argument impact.`,
+    rationale: `The debate produced meaningful engagement on "${motion}". ${winner === 'draw' ? 'Both sides presented equally strong foundational cases.' : `${winnerName} offered stronger rebuttal and impact weighing on key points.`}`,
     scores: { for: scoreFor, against: scoreAgainst },
     for: {
       score: scoreFor,
-      strengths: ['Structured affirmative constructive arguments', 'Direct engagement with opposing claims'],
-      weaknesses: ['Could extend long-term comparative impact weighing'],
-      advice: 'Open with your strongest empirical proof early in constructive speeches.'
+      strengths: ['Constructive argumentation on core motion', 'Engagement with opposing claims'],
+      weaknesses: ['Could extend long-term impact analysis'],
+      advice: 'Open with your strongest empirical example early in constructive speeches.'
     },
     against: {
       score: scoreAgainst,
-      strengths: ['Targeted rebuttal of proposition claims', 'Pushed on practical feasibility'],
-      weaknesses: ['Could deepen empirical backing for counterarguments'],
-      advice: 'Signpost counter-points directly against affirmative impacts.'
+      strengths: ['Focused counter-rebuttal', 'Pushed on practical feasibility'],
+      weaknesses: ['Could provide broader comparative weighing'],
+      advice: 'Structure counter-points with explicit signposting against affirmative claims.'
     }
   };
 }

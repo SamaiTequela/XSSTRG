@@ -30,10 +30,11 @@ function getEnvKeys() {
 }
 
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
   "gemini-flash-latest",
+  "gemini-2.5-flash",
 ];
 
 const ANTHROPIC_MODELS = [
@@ -58,12 +59,46 @@ function rateLimited(ip) {
 
 const clip = (s, n) => String(s == null ? "" : s).slice(0, n).trim();
 
+const COMMON_WORDS = new Set([
+  'the','be','to','of','and','a','in','that','have','i','it','for','not','on','with','he','as','you','do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all','would','there','their','what','so','up','out','if','about','who','get','which','go','me','when','make','can','like','time','no','just','him','know','take','people','into','year','your','good','some','could','them','see','other','than','then','now','look','only','come','its','over','think','also','back','after','use','two','how','our','work','first','well','way','even','new','want','because','any','these','give','day','most','us','should','social','media','government','argue','argument','motion','point','against','agree','disagree','believe','evidence','reason','claim','rebuttal','policy','right','law','state','world','public','country','problem','need'
+]);
+
+export function isSubstantiveSpeech(text) {
+  if (!text || typeof text !== 'string') return false;
+  const cleaned = text.trim();
+  if (cleaned.length < 3) return false;
+
+  const words = cleaned.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+
+  // Single huge word with no spaces is keyboard mashing
+  if (words.length === 1 && words[0].length > 14) return false;
+
+  let recognized = 0;
+  for (const w of words) {
+    const s = w.replace(/[^a-z]/g, '');
+    if (COMMON_WORDS.has(s)) {
+      recognized++;
+    } else if (s.length >= 3 && s.length <= 13 && /[aeiouy]/.test(s) && !/([a-z])\1{2,}/.test(s)) {
+      recognized++;
+    }
+  }
+
+  return words.length >= 2
+    ? (recognized / words.length >= 0.35 && recognized >= 2)
+    : (recognized === 1 && COMMON_WORDS.has(words[0]));
+}
+
 export function buildPrompt({ motion, nameFor, nameAgainst, transcript }) {
   const lines = [];
   lines.push(
     "You are an experienced competitive-debate adjudicator. Judge ONLY the quality of " +
       "argumentation: claims, reasoning, evidence, rebuttal, and persuasiveness. Ignore spelling, " +
       "typing speed, and who wrote more words. Reward direct engagement with the other side."
+  );
+  lines.push("");
+  lines.push(
+    "CRITICAL RULE ON GIBBERISH / NONSENSE: If a speaker's text consists of random keyboard mashing, unintelligible characters, or has zero coherent arguments, assign that speaker a score of 0, state in their weaknesses that they typed unintelligible nonsense, and award the win to the other speaker (or draw at 0-0 if both typed gibberish). NEVER hallucinate or invent arguments for nonsense text."
   );
   lines.push("");
   lines.push(`MOTION: This house believes that "${motion}"`);
@@ -182,14 +217,80 @@ export function normalizeVerdict(d) {
 export function generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript = [] }) {
   const forRemarks = transcript.filter((t) => t.side === "for");
   const againstRemarks = transcript.filter((t) => t.side === "against");
+
+  const forSubstantive = forRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+  const againstSubstantive = againstRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+
+  // Case 1: Both entered gibberish or empty speeches
+  if (!forSubstantive && !againstSubstantive) {
+    return normalizeVerdict({
+      winner: "draw",
+      headline: "No substantive debate took place.",
+      rationale: `Neither speaker placed coherent, substantive arguments on the record regarding "${motion}". Without intelligible claims or reasoned clash, no points can be awarded.`,
+      for: {
+        score: 0,
+        strengths: [],
+        weaknesses: ["Delivered unintelligible or nonsensical remarks", "Did not advance arguments on the motion"],
+        advice: "Open with a clear proposition claim and provide at least one supporting reason."
+      },
+      against: {
+        score: 0,
+        strengths: [],
+        weaknesses: ["Delivered unintelligible or nonsensical remarks", "Did not advance counterarguments on the motion"],
+        advice: "Deliver a structured speech directly countering the opposing claims."
+      }
+    });
+  }
+
+  // Case 2: Only Proposition gave a substantive speech
+  if (forSubstantive && !againstSubstantive) {
+    return normalizeVerdict({
+      winner: "for",
+      headline: `${nameFor} carries the motion uncontested.`,
+      rationale: `${nameFor} put forward an intelligible case on the motion, while ${nameAgainst} failed to provide coherent counter-arguments or clash.`,
+      for: {
+        score: 8,
+        strengths: ["Delivered an intelligible constructive argument on the motion"],
+        weaknesses: ["Could develop deeper impact analysis"],
+        advice: "Continue establishing clear constructive points."
+      },
+      against: {
+        score: 0,
+        strengths: [],
+        weaknesses: ["Failed to present coherent arguments or rebuttal"],
+        advice: "Provide structured counter-arguments directly engaging with the motion."
+      }
+    });
+  }
+
+  // Case 3: Only Opposition gave a substantive speech
+  if (!forSubstantive && againstSubstantive) {
+    return normalizeVerdict({
+      winner: "against",
+      headline: `${nameAgainst} carries the debate uncontested.`,
+      rationale: `${nameAgainst} presented coherent points against the motion, while ${nameFor} failed to put forward an intelligible constructive case.`,
+      for: {
+        score: 0,
+        strengths: [],
+        weaknesses: ["Failed to present coherent proposition arguments"],
+        advice: "Open with a clear claim explaining why the motion should be adopted."
+      },
+      against: {
+        score: 8,
+        strengths: ["Delivered substantive counterarguments on the floor"],
+        weaknesses: ["Could expand comparative impacts"],
+        advice: "Continue pressing on practical and empirical objections."
+      }
+    });
+  }
+
+  // Case 4: Both gave substantive speeches
   const forWords = forRemarks.reduce((acc, t) => acc + (t.text || "").split(/\s+/).filter(Boolean).length, 0);
   const againstWords = againstRemarks.reduce((acc, t) => acc + (t.text || "").split(/\s+/).filter(Boolean).length, 0);
 
   let winner = "draw";
-  if (forRemarks.length > 0 && againstRemarks.length === 0) winner = "for";
-  else if (againstRemarks.length > 0 && forRemarks.length === 0) winner = "against";
-  else if (forWords > againstWords * 1.25) winner = "for";
-  else if (againstWords > forWords * 1.25) winner = "against";
+  if (forWords > againstWords * 1.3) winner = "for";
+  else if (againstWords > forWords * 1.3) winner = "against";
 
   const winnerName = winner === "for" ? nameFor : winner === "against" ? nameAgainst : "Draw";
   const scoreFor = winner === "for" ? 8 : winner === "draw" ? 7 : 6;
@@ -201,7 +302,7 @@ export function generateFallbackVerdict({ motion, nameFor, nameAgainst, transcri
     rationale: `The debate produced meaningful engagement on "${motion}". ${winner === "draw" ? "Both sides presented equally strong foundational cases." : `${winnerName} offered stronger rebuttal and impact weighing on key points.`}`,
     for: {
       score: scoreFor,
-      strengths: ["Clear constructive arguments on core motion", "Direct engagement with opposing claims"],
+      strengths: ["Constructive argumentation on core motion", "Engagement with opposing claims"],
       weaknesses: ["Could extend long-term impact analysis"],
       advice: "Open with your strongest empirical example early in constructive speeches."
     },
@@ -272,8 +373,18 @@ async function queryGemini(prompt, apiKey) {
 }
 
 export async function judgeDebate({ motion, nameFor = "For", nameAgainst = "Against", transcript = [] }) {
-  const { geminiKey, anthropicKey } = getEnvKeys();
+  const forRemarks = transcript.filter((t) => t.side === "for");
+  const againstRemarks = transcript.filter((t) => t.side === "against");
 
+  const forSubstantive = forRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+  const againstSubstantive = againstRemarks.some((t) => !t.passed && isSubstantiveSpeech(t.text));
+
+  // Quick return for empty or complete gibberish without wasting API quota
+  if (!forSubstantive && !againstSubstantive) {
+    return generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript });
+  }
+
+  const { geminiKey, anthropicKey } = getEnvKeys();
   const prompt = buildPrompt({ motion, nameFor, nameAgainst, transcript });
 
   let rawOutput = null;
@@ -303,7 +414,7 @@ export async function judgeDebate({ motion, nameFor = "For", nameAgainst = "Agai
     }
   }
 
-  // Internal resilient fallback if remote calls fail
+  // Resilient heuristic fallback if remote calls fail
   return generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript });
 }
 
