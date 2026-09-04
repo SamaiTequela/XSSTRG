@@ -170,9 +170,11 @@ export default function App() {
   // Sync remote phase changes — ONLY in online modes.
   // In offline mode roomSync.roomState.phase can linger at 'verdict', which
   // would override the user navigating away (Main Menu / New Debate / Rematch).
+  // Also skip if remotePhase is null (initial state before any game starts).
   useEffect(() => {
-    if (!isOnlineMode) return; // offline: local phase is authoritative
+    if (!isOnlineMode) return;
     const remotePhase = roomSync.roomState?.phase;
+    if (!remotePhase) return; // null = not yet initialised, ignore
     if (remotePhase && remotePhase !== phase) {
       if (remotePhase === 'debate' && phase === 'room_lobby') {
         setPhase('transition');
@@ -520,7 +522,7 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           onBackToDebate={() => setPhase('debate')}
           onSubmitJudgement={handleSubmitJudgement}
-          onReturnToMain={() => setPhase('lobby')}
+          onReturnToMain={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
           turns={roomSync.roomState.transcript || []}
           gameMode={gameMode}
         />
@@ -534,9 +536,10 @@ export default function App() {
           roomCode={roomCode}
           theme={theme}
           onToggleTheme={handleToggleTheme}
-          onNewDebate={() => setPhase('lobby')}
-          onReturnToMain={() => setPhase('lobby')}
+          onNewDebate={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
+          onReturnToMain={() => { setVerdict(null); setRoomCode(''); setPhase('lobby'); }}
           onRematch={() => {
+            setVerdict(null);
             roomSync.resetDebateState?.({
               remainingFor: initialSeconds,
               remainingAgainst: initialSeconds,
@@ -545,7 +548,7 @@ export default function App() {
               prepSeconds: 0,
               transcript: []
             });
-            setPhase('debate');
+            setPhase('transition');
           }}
           turns={roomSync.roomState.transcript || []}
           verdict={verdict}

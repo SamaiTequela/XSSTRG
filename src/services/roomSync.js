@@ -104,7 +104,7 @@ export function useRoomSync({
   const [participants, setParticipants] = useState([]);
   const [serverView, setServerView] = useState(null);
   const [roomState, setRoomState] = useState({
-    phase: 'debate',
+    phase: null, // null = not yet in a debate phase; set explicitly by App
     activeSpeaker: 'for',
     turnNo: 1,
     remainingFor: 600,
@@ -514,17 +514,19 @@ export function useRoomSync({
     }
   }, [dispatchMessage, isOnline, roomId]);
 
-  // 11. Reset State
+  // 11. Reset State (used for new game / rematch)
   const resetDebateState = useCallback((newState = {}) => {
     const fresh = {
-      phase: 'debate',
+      phase: 'debate',       // always reset to active debate phase
       activeSpeaker: 'for',
       turnNo: 1,
       remainingFor: newState.remainingFor || 600,
       remainingAgainst: newState.remainingAgainst || 600,
       prepSeconds: newState.prepSeconds ?? 0,
       transcript: [],
-      verdict: null,
+      verdict: null,         // clear any previous verdict
+      endRequest: null,
+      concededBy: null,
       ...newState
     };
     setRoomState(fresh);

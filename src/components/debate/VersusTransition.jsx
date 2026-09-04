@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Swords, Clock, Scale, Shield, Sparkles, ArrowRight } from 'lucide-react';
 import { playTurnSubmit, playClick } from '../../utils/soundEffects';
 
