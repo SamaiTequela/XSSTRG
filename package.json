@@ -14,7 +14,7 @@
     "build:ui": "vite build",
     "preview": "vite preview",
     "deploy": "vercel deploy --prod",
-    "test": "node tests/room-logic.test.mjs && node tests/room-api.test.mjs && node tests/verdict-normalise.test.mjs",
+    "test": "node tests/room-logic.test.mjs && node tests/room-api.test.mjs && node tests/verdict-normalise.test.mjs && node tests/verdict-sync.test.mjs",
     "test:live": "node tests/adjudicator.live.mjs"
   },
   "dependencies": {

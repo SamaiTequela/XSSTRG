@@ -17,6 +17,22 @@ export function getSessionClientId() {
 
 export const CLIENT_ID = getSessionClientId();
 
+// Which verdict a client should hold after a poll.
+//
+// A rematch clears the verdict on the server. Keeping the previous one whenever
+// the server says null stranded the guest: App sees a verdict in room state and
+// forces the verdict screen back on every poll, so the host sat in the lobby
+// ready to launch while the opponent stared at the last result -- rendered
+// against the newly swapped seat names, which made it read as the wrong winner.
+// In phases where no verdict can exist, the server's null is the truth.
+// Elsewhere the previous value is kept, so a host's verdict is not blanked
+// between generating it and publishing it.
+const VERDICTLESS_PHASES = ['lobby', 'debate', 'review'];
+export function nextVerdict(phase, serverVerdict, prevVerdict) {
+  if (VERDICTLESS_PHASES.includes(phase)) return null;
+  return serverVerdict || prevVerdict || null;
+}
+
 // API Helpers for /api/room
 export async function createOnlineRoom({ code, name, motion, perSecs, judgeMode, role }) {
   const res = await fetch('/api/room', {
@@ -308,7 +324,7 @@ export function useRoomSync({
           : prev.remainingAgainst,
         prepSeconds,
         transcript: v.transcript || prev.transcript,
-        verdict: v.verdict || prev.verdict,
+        verdict: nextVerdict(v.phase, v.verdict, prev.verdict),
         endRequest: v.endRequest || null,
         concededBy: v.concededBy || null
       };

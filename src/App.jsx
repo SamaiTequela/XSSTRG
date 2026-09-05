@@ -511,6 +511,9 @@ export default function App() {
           }
         }
       } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
+        // The room was reset (rematch or a new motion). Drop the finished
+        // verdict, or the block below drags this client straight back to it.
+        setVerdict(null);
         transitionToPhase('room_lobby');
       }
     }
