@@ -77,6 +77,11 @@ export function DebateStage({
     ? roomSync.onlineParticipantCount
     : (roomSync?.participants?.length || 1);
 
+  // The jury is on the server view. `participants` only ever holds tabs of the
+  // same browser talking over BroadcastChannel, so across real devices it was
+  // always empty and the header reported no judges at all.
+  const juryCount = roomSync?.serverView?.spectators?.length || 0;
+
   // Synchronize incoming roomState clocks
   useEffect(() => {
     if (typeof roomState.remainingFor === 'number') {
@@ -314,7 +319,7 @@ export function DebateStage({
         onReturnLobby={onReturnLobby}
         gameMode={gameMode}
         participantCount={participantCount}
-        judgeCount={roomSync?.participants?.filter(p => p.role === 'judge').length || 0}
+        judgeCount={juryCount}
         motionText={motionText}
         initialSeconds={initialSeconds}
         initialHideCode={initialHideCode}

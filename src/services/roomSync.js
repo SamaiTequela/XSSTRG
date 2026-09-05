@@ -607,6 +607,22 @@ export function useRoomSync({
     }
   }, [isOnline, roomId, syncServerView]);
 
+  // 12c. Cast this juror's ballot. The server averages the panel and publishes
+  // the verdict once every juror has voted or the deliberation clock expires.
+  const castJuryBallot = useCallback(async ({ scoreFor, scoreAgainst, remarks }) => {
+    if (!isOnline || !roomId) return null;
+    try {
+      const view = await sendRoomAction('submitJudgement', roomId, {
+        scoreFor, scoreAgainst, remarks: remarks || ''
+      });
+      if (view) syncServerView(view);
+      return view;
+    } catch (err) {
+      console.warn('Jury ballot error:', err);
+      return null;
+    }
+  }, [isOnline, roomId, syncServerView]);
+
   // 13. Cleanly Leave Chamber
   const leaveChamber = useCallback(async () => {
     if (isOnline && roomId) {
@@ -649,6 +665,7 @@ export function useRoomSync({
     broadcastRematch,
     leaveChamber,
     nudgeRoom,
+    castJuryBallot,
     onlineParticipantCount: serverView ? (
       (serverView.seats?.for?.filled ? 1 : 0) +
       (serverView.seats?.against?.filled ? 1 : 0) +

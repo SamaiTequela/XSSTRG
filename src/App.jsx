@@ -833,6 +833,13 @@ export default function App() {
           onReturnToMain={handleLeaveChamber}
           turns={roomSync.roomState.transcript || []}
           gameMode={gameMode}
+          isOnlineJury={isOnlineMode && gameMode === 'crowd_jury'}
+          isJuror={!!roomSync.serverView?.you?.isSpectator}
+          hasCastBallot={!!roomSync.serverView?.you?.hasScored}
+          jurorsTotal={roomSync.serverView?.spectators?.length || 0}
+          jurorsScored={(roomSync.serverView?.spectators || []).filter((s) => s.hasScored).length}
+          scoringRemainingMs={roomSync.serverView?.scoringRemainingMs ?? null}
+          onCastBallot={roomSync.castJuryBallot}
         />
       )}
 

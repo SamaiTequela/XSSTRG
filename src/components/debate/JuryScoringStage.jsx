@@ -53,12 +53,28 @@ export function JuryScoringStage({
   onReturnToMain,
   turns = DEFAULT_TRANSCRIPT,
   gameMode = 'hotseat',
-  judgeCount = 1
+  judgeCount = 1,
+  // Online Crowd Jury only. The ballot belongs to the jury: a debater must not
+  // be handed one, and a juror's scores go to the server to be averaged with
+  // the rest of the panel rather than published as the whole jury's verdict.
+  isOnlineJury = false,
+  isJuror = false,
+  hasCastBallot = false,
+  jurorsTotal = 0,
+  jurorsScored = 0,
+  scoringRemainingMs = null,
+  onCastBallot
 }) {
   const [scoreFor, setScoreFor] = useState(7);
   const [scoreAgainst, setScoreAgainst] = useState(6);
   const [remarks, setRemarks] = useState('');
-  const [secondsLeft, setSecondsLeft] = useState(114); // 2 min deliberation
+  // Offline this is a local two-minute countdown. Online the server owns the
+  // deliberation clock, so every juror sees the same number: the local one
+  // restarted from 114 whenever this screen remounted, which made the time
+  // remaining jump upwards mid-deliberation.
+  const [secondsLeft, setSecondsLeft] = useState(
+    scoringRemainingMs != null ? Math.max(0, Math.round(scoringRemainingMs / 1000)) : 114
+  );
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAdjudicating, setIsAdjudicating] = useState(false);
@@ -71,6 +87,13 @@ export function JuryScoringStage({
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Take the server's deliberation clock whenever it answers, so the panel
+  // never disagrees about how long is left.
+  useEffect(() => {
+    if (scoringRemainingMs == null) return;
+    setSecondsLeft(Math.max(0, Math.round(scoringRemainingMs / 1000)));
+  }, [scoringRemainingMs]);
 
   const progressPercent = Math.max(0, (secondsLeft / 120) * 100);
 
@@ -113,6 +136,15 @@ export function JuryScoringStage({
 
   const handleSubmitJudgement = (e) => {
     e?.preventDefault();
+    if (isOnlineJury) {
+      // One ballot among several. The server averages the panel and publishes
+      // the verdict once everyone has voted or the clock runs out; inventing a
+      // verdict here would have let the first juror to click decide the match.
+      if (!isJuror || hasCastBallot) return;
+      setHasSubmitted(true);
+      onCastBallot?.({ scoreFor, scoreAgainst, remarks });
+      return;
+    }
     setHasSubmitted(true);
     // Construct local user juror verdict
     const isForWinner = scoreFor > scoreAgainst;
@@ -623,7 +655,53 @@ export function JuryScoringStage({
 
         {/* Submission Buttons / Locked Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {!hasSubmitted ? (
+          {isOnlineJury && !isJuror ? (
+            // A debater is not on the panel. They used to be shown the full
+            // ballot; pressing Submit did nothing at all, because the server
+            // refuses a judgement from a speaker.
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '9px',
+                padding: '10px 18px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--brass-subtle)',
+                border: '1px solid var(--brass-line)',
+                color: 'var(--ink)',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}
+            >
+              <Scale size={17} color="var(--brass)" />
+              <span>
+                The jury is deliberating on your debate
+                {jurorsTotal > 0 ? ` — ${jurorsScored} of ${jurorsTotal} ballot${jurorsTotal === 1 ? '' : 's'} cast` : ''}.
+                The verdict appears here as soon as the panel has voted.
+              </span>
+            </div>
+          ) : (isOnlineJury && (hasSubmitted || hasCastBallot)) ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--for-bg)',
+                border: '1px solid var(--for-line)',
+                color: 'var(--for-strong)',
+                fontWeight: 700,
+                fontSize: '0.9rem'
+              }}
+            >
+              <CheckCircle2 size={18} color="var(--for)" />
+              <span>
+                Ballot cast
+                {jurorsTotal > 0 ? ` — ${jurorsScored} of ${jurorsTotal} in` : ''}. Waiting for the rest of the panel.
+              </span>
+            </div>
+          ) : !hasSubmitted ? (
             <>
               <button
                 type="button"

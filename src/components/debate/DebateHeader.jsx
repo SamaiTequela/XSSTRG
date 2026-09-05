@@ -56,7 +56,9 @@ export function DebateHeader({
 
   const getModeEyebrow = () => {
     if (isOffline) return 'CHAMBER DEBATE • OFFLINE CHAMBER';
-    if (gameMode === 'jury') return 'CHAMBER DEBATE • CROWD JURY';
+    // App calls this mode 'crowd_jury'; only the older 'jury' spelling was
+    // tested here, so a jury room announced itself as an ordinary online one.
+    if (gameMode === 'jury' || gameMode === 'crowd_jury') return 'CHAMBER DEBATE • CROWD JURY';
     return 'CHAMBER DEBATE • ONLINE CHAMBER';
   };
 
@@ -176,7 +178,11 @@ export function DebateHeader({
             >
               <Users size={14} color="var(--brass)" />
               <span style={{ fontWeight: 600 }}>
-                {judgeCount > 0 ? `${judgeCount} ${judgeCount === 1 ? 'Judge' : 'Judges'}` : `${participantCount} ${participantCount === 1 ? 'Debater' : 'Debaters'}`}
+                {/* A jury room has both, and showing only the jury hid the
+                    speakers while counting jurors as debaters. */}
+                {judgeCount > 0
+                  ? `2 Debaters • ${judgeCount} ${judgeCount === 1 ? 'Judge' : 'Judges'}`
+                  : `${participantCount} ${participantCount === 1 ? 'Debater' : 'Debaters'}`}
               </span>
               <span
                 style={{
