@@ -75,7 +75,7 @@ export function ParlourLobby({
     return initialRole || 'for';
   });
   
-  // Clocks: 10, 20, 30 minutes
+  // Clocks: 10, 20, 30 minutes (+ 0.5 = 30s TEMPORARY TEST MODE)
   const [timeMinutes, setTimeMinutes] = useState(10);
   
   // Random room code & hide toggle
@@ -655,7 +655,7 @@ export function ParlourLobby({
               CHESS CLOCK PER SIDE
             </label>
             <div style={{ display: 'flex', gap: '6px' }}>
-              {[10, 20, 30].map((mins) => (
+              {[0.5, 10, 20, 30].map((mins) => (
                 <button
                   key={mins}
                   type="button"
@@ -672,7 +672,7 @@ export function ParlourLobby({
                     cursor: 'pointer'
                   }}
                 >
-                  {mins} min
+                  {mins < 1 ? '30 sec' : `${mins} min`}
                 </button>
               ))}
             </div>
