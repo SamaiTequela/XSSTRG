@@ -814,7 +814,7 @@ export default function App() {
         />
       )}
 
-      {phase === 'verdict' && (
+      {phase === 'verdict' && verdict && (
         <VerdictStage
           initialSeconds={initialSeconds}
           motionText={motionText}
@@ -827,6 +827,7 @@ export default function App() {
           onReturnToMain={handleLeaveChamber}
           onRematch={handleRematch}
           turns={roomSync.roomState.transcript || []}
+          judgeCount={gameMode === 'crowd_jury' ? (roomSync.serverView?.spectators?.length || 0) : 0}
           verdict={verdict}
           gameMode={gameMode}
         />

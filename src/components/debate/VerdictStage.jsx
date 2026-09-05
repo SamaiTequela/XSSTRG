@@ -39,7 +39,10 @@ export default function VerdictStage({
   turns = DEFAULT_TRANSCRIPT,
   verdict = null,
   gameMode = 'offline',
-  judgeCount = 1
+  // 0 means "no human jury": the header then shows the debater count. It used
+  // to default to 1, so an AI-adjudicated room announced "1 Judge" that did
+  // not exist, and a Crowd Jury of three still announced one.
+  judgeCount = 0
 }) {
   const [copied, setCopied] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -213,11 +216,11 @@ export default function VerdictStage({
           <div className="eyebrow" style={{ color: winColor, letterSpacing: '0.16em', marginBottom: '6px' }}>
             {isCrowdJury
               ? 'CROWD JURY VERDICT'
-              : verdict.isFallback
+              : verdict?.isFallback
                 ? 'PROVISIONAL RESULT • NO ADJUDICATOR'
                 : 'AI ADJUDICATOR VERDICT'}
           </div>
-          {verdict.isFallback && verdict.notice && (
+          {verdict?.isFallback && verdict?.notice && (
             <div
               style={{
                 margin: '0 auto 10px',
@@ -231,7 +234,7 @@ export default function VerdictStage({
                 color: 'var(--ink-soft, var(--ink))'
               }}
             >
-              {verdict.notice}
+              {verdict?.notice}
             </div>
           )}
           <h2
