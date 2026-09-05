@@ -264,5 +264,41 @@ console.log('\n=== I. Both clocks dead ends the debate ===');
   ok(judged.view.phase === 'judging', 'the match still reaches the adjudicator afterwards');
 }
 
+console.log('');
+console.log('=== J. The deliberation clock closes scoring on its own ===');
+{
+  const j = await post({ action: 'create', clientId: J1, name: 'Judge One', perSecs: 600, motion: 'Timer motion', judgeMode: true, role: 'spectator' });
+  const jc = j.view.code;
+  await post({ action: 'join', code: jc, clientId: J2, name: 'Judge Two', role: 'spectator' });
+  await post({ action: 'join', code: jc, clientId: A, name: 'Alex', seat: 'for' });
+  await post({ action: 'join', code: jc, clientId: B, name: 'Sam', seat: 'against' });
+  await post({ action: 'start', code: jc, clientId: J1 });
+  await post({ action: 'turn', code: jc, clientId: A, text: 'Proposition case.' });
+  await post({ action: 'speak', code: jc, clientId: B });
+  await post({ action: 'turn', code: jc, clientId: B, text: 'Opposition case.' });
+  await post({ action: 'requestEnd', code: jc, clientId: A });
+  await post({ action: 'respondEnd', code: jc, clientId: B, accept: true });
+  await post({ action: 'ready', code: jc, clientId: A });
+  await post({ action: 'ready', code: jc, clientId: B });
+
+  // Only one of the two jurors votes. The other has wandered off.
+  await post({ action: 'submitJudgement', code: jc, clientId: J1, scoreFor: 9, scoreAgainst: 4, remarks: 'Clear.' });
+  const stillOpen = await get(jc, A);
+  ok(stillOpen.view.phase === 'scoring', 'one of two ballots does not close deliberation early');
+
+  // Wind the deliberation clock back past its two minutes.
+  const store = globalThis.__debateGameMemoryStore;
+  const key = 'poo:room:' + jc;
+  const room = JSON.parse(store.map.get(key));
+  room.scoringStartedAt = Date.now() - 121000;
+  store.map.set(key, JSON.stringify(room));
+
+  const closed = await get(jc, A);
+  ok(closed.view.phase === 'verdict', 'the clock expiring publishes the verdict without the missing juror');
+  ok(closed.view.verdict.judgeCount === 1, 'only the ballots actually cast are counted');
+  ok(closed.view.verdict.winner === 'for', 'the verdict follows the ballot that was cast');
+  ok(closed.view.verdict.individualScores.length === 1, 'the scorecard shows one ballot, not a phantom second');
+}
+
 console.log(`\n${checks} checks, ${fails ? fails + ' FAILURES' : 'all passed'}`);
 process.exit(fails ? 1 : 0);
