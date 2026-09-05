@@ -345,7 +345,7 @@ export default function VerdictStage({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))',
             gap: 'clamp(16px, 2.5vw, 24px)',
             alignItems: 'start'
           }}

@@ -1,17 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Generates and persists a unique client ID per browser session
+// Who this player is, as far as a room is concerned. Kept per device rather
+// than per tab: a seat is held by a client id, so with the id in sessionStorage
+// a player who closed the tab -- or whose phone simply killed it -- came back
+// through the invite link as a stranger and was told "This room already has two
+// speakers", locked out of their own seat in a match still in progress. From
+// localStorage they land back in it. Two tabs of one browser are now one
+// player, which is what the hot-seat chamber is for.
+const CLIENT_ID_KEY = 'poo_client_id';
+const freshClientId = () => 'client_' + Math.random().toString(36).substring(2, 9);
+
 export function getSessionClientId() {
-  if (typeof window === 'undefined') return 'client_' + Math.random().toString(36).substring(2, 9);
+  if (typeof window === 'undefined') return freshClientId();
   try {
-    let id = sessionStorage.getItem('poo_client_id');
-    if (!id) {
-      id = 'client_' + Math.random().toString(36).substring(2, 9);
-      sessionStorage.setItem('poo_client_id', id);
-    }
+    // Adopt an id this tab is already using, so a match in progress survives
+    // the change rather than losing its seat to it.
+    let id = localStorage.getItem(CLIENT_ID_KEY) || sessionStorage.getItem(CLIENT_ID_KEY);
+    if (!id) id = freshClientId();
+    localStorage.setItem(CLIENT_ID_KEY, id);
+    try { sessionStorage.setItem(CLIENT_ID_KEY, id); } catch { /* private mode */ }
     return id;
   } catch {
-    return 'client_' + Math.random().toString(36).substring(2, 9);
+    try {
+      const id = sessionStorage.getItem(CLIENT_ID_KEY) || freshClientId();
+      sessionStorage.setItem(CLIENT_ID_KEY, id);
+      return id;
+    } catch {
+      return freshClientId();
+    }
   }
 }
 

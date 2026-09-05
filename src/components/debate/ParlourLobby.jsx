@@ -259,7 +259,7 @@ export function ParlourLobby({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
               gap: '6px',
               background: 'var(--ground)',
               padding: '4px',
@@ -480,7 +480,7 @@ export function ParlourLobby({
         {/* Identity & Stance Grid: Adaptive based on Chamber Mode */}
         {mode === 'offline' ? (
           /* Offline Chamber: Dual Speaker Names */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '18px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label htmlFor="name-for-input" className="eyebrow" style={{ color: 'var(--for)' }}>
                 PROPOSITION SPEAKER (FOR)
@@ -528,7 +528,7 @@ export function ParlourLobby({
           </div>
         ) : mode === 'online' ? (
           /* Online Chamber: Speaker Name & Bench Selection (Proposition, Opposition, Random) */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '18px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label htmlFor="speaker-name-input" className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
                 YOUR SPEAKER NAME
@@ -618,7 +618,7 @@ export function ParlourLobby({
           </div>
         ) : (
           /* Crowd Jury Mode */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '18px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label htmlFor="speaker-name-input" className="eyebrow" style={{ color: 'var(--brass)' }}>
                 YOUR JUROR NAME
@@ -654,7 +654,7 @@ export function ParlourLobby({
         )}
 
         {/* Chess Clock Time Selection (10 / 20 / 30 min) & Room Code */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '18px' }}>
           {/* Time Duration: 10 / 20 / 30 min */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>

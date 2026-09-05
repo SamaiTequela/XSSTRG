@@ -357,7 +357,7 @@ export function JuryScoringStage({
         hidden={isOnlineJury && !isJuror}
         style={{
           display: isOnlineJury && !isJuror ? 'none' : 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
           gap: 'clamp(16px, 2.5vw, 24px)',
           alignItems: 'stretch'
         }}
