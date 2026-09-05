@@ -623,6 +623,22 @@ export function useRoomSync({
     }
   }, [isOnline, roomId, syncServerView]);
 
+  // 12d. Tell the server this speaker is done reading the record.
+  // Both speakers must say so before the room leaves the review phase; without
+  // it the room sat in review for ever, the adjudicator was never opened, and
+  // setVerdict -- which only applies while judging -- was silently refused.
+  const signalReady = useCallback(async () => {
+    if (!isOnline || !roomId) return null;
+    try {
+      const view = await sendRoomAction('ready', roomId);
+      if (view) syncServerView(view);
+      return view;
+    } catch (err) {
+      console.warn('Ready signal error:', err);
+      return null;
+    }
+  }, [isOnline, roomId, syncServerView]);
+
   // 13. Cleanly Leave Chamber
   const leaveChamber = useCallback(async () => {
     if (isOnline && roomId) {
@@ -666,6 +682,7 @@ export function useRoomSync({
     leaveChamber,
     nudgeRoom,
     castJuryBallot,
+    signalReady,
     onlineParticipantCount: serverView ? (
       (serverView.seats?.for?.filled ? 1 : 0) +
       (serverView.seats?.against?.filled ? 1 : 0) +

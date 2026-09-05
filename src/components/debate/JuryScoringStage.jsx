@@ -348,11 +348,15 @@ export function JuryScoringStage({
         </div>
       </motion.div>
 
-      {/* 3. Scoring Cards: Side-by-Side 1–10 Cards */}
+      {/* 3. Scoring Cards: Side-by-Side 1–10 Cards.
+             Hidden from the speakers in an online jury room -- the ballot is
+             the panel's, and showing debaters inert sliders for scoring their
+             own debate only invited them to press a button that did nothing. */}
       <div
         className="scoring-grid"
+        hidden={isOnlineJury && !isJuror}
         style={{
-          display: 'grid',
+          display: isOnlineJury && !isJuror ? 'none' : 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: 'clamp(16px, 2.5vw, 24px)',
           alignItems: 'stretch'

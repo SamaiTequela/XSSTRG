@@ -485,11 +485,15 @@ export default function App() {
     }
   }, [gameMode, roomSync.roomState?.transcript, motionText, nameFor, nameAgainst, transitionToPhase, handleSubmitJudgement]);
 
+  // Sent once per review phase, not once per poll.
+  const readySentRef = React.useRef(false);
+
   // Sync remote phase changes — ONLY in active online rooms.
   useEffect(() => {
     if (!isOnlineMode || !roomCode || phase === 'lobby') return;
     const remotePhase = roomSync.roomState?.phase;
     if (!remotePhase) return; // null = not yet initialised, ignore
+    if (remotePhase !== 'review') readySentRef.current = false;
 
     if (remotePhase !== phase) {
       if (remotePhase === 'debate' && (phase === 'room_lobby' || phase === 'lobby')) {
@@ -498,17 +502,25 @@ export default function App() {
         transitionToPhase('verdict');
       } else if (remotePhase === 'scoring') {
         transitionToPhase('scoring');
-      } else if (remotePhase === 'review' || remotePhase === 'judging') {
-        // Debate concluded on server
-        if (gameMode === 'crowd_jury') {
-          transitionToPhase('scoring');
-        } else {
-          const isHost = roomSync.serverView?.you?.isHost ?? (userRole === 'for');
-          if (isHost && !isAdjudicating && !verdict) {
-            handleTriggerAdjudication();
-          } else if (!isHost && phase !== 'deliberating' && !verdict) {
-            transitionToPhase('deliberating');
-          }
+      } else if (remotePhase === 'review') {
+        // The room waits here until both speakers confirm they are done with
+        // the record. Nothing ever sent that confirmation, so the room stayed
+        // in review: the adjudicator was never opened, the verdict could not be
+        // stored (setVerdict only applies while judging), and the opponent --
+        // on a device that could not see the host's local copy -- was left
+        // waiting for a result that never arrived. Jury rooms stalled the same
+        // way, with scoring never opening for the panel.
+        if (!roomSync.serverView?.you?.isSpectator && !readySentRef.current) {
+          readySentRef.current = true;
+          roomSync.signalReady?.();
+        }
+        if (phase !== 'deliberating' && !verdict) transitionToPhase('deliberating');
+      } else if (remotePhase === 'judging') {
+        const isHost = roomSync.serverView?.you?.isHost ?? (userRole === 'for');
+        if (isHost && !isAdjudicating && !verdict) {
+          handleTriggerAdjudication();
+        } else if (!isHost && phase !== 'deliberating' && !verdict) {
+          transitionToPhase('deliberating');
         }
       } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
         // The room was reset (rematch or a new motion). Drop the finished
