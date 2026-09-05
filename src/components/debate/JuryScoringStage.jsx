@@ -42,6 +42,7 @@ const SCORE_RUBRIC = {
 
 export function JuryScoringStage({
   motionText,
+  initialSeconds = 600,
   nameFor = 'Alex',
   nameAgainst = 'Sam',
   roomCode = 'HY7X',
@@ -155,6 +156,7 @@ export function JuryScoringStage({
     <div className="debate-container jury-scoring-screen" style={{ position: 'relative' }}>
       {/* 1. Motion Banner Pinned At Top */}
       <DebateHeader
+        initialSeconds={initialSeconds}
         roomCode={roomCode}
         turnNo={turns.length || 1}
         theme={theme}

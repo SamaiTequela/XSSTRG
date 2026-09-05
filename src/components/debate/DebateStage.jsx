@@ -51,6 +51,10 @@ export function DebateStage({
   const [mobileTab, setMobileTab] = useState('floor'); // 'floor' | 'record'
   const [handoffOpen, setHandoffOpen] = useState(false);
 
+  // Live mirror of the composer draft, so an expiring clock can enter it
+  const draftRef = useRef('');
+  const [draftResetToken, setDraftResetToken] = useState(0);
+
   // Determine if it is currently this tab's turn to speak
   const isMyTurn = effectiveRole === 'judge' ? false : (effectiveRole === activeSpeaker);
 
@@ -72,8 +76,11 @@ export function DebateStage({
     }
   }, [roomState.remainingFor, roomState.remainingAgainst, roomState.prepSeconds]);
 
-  // Chess clock countdown for active speaker with low-time audio warnings
+  // Chess clock countdown for active speaker with low-time audio warnings.
+  // Nothing advances while the hot-seat handover card is up: the device has not
+  // reached the incoming speaker yet, and the card promises the clock is stopped.
   useEffect(() => {
+    if (handoffOpen) return undefined;
     const timer = setInterval(() => {
       if (prepSeconds > 0) {
         setPrepSeconds((prev) => Math.max(0, prev - 1));
@@ -102,31 +109,43 @@ export function DebateStage({
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeSpeaker, prepSeconds]);
+  }, [activeSpeaker, prepSeconds, handoffOpen]);
 
-  // Turn handoff if active speaker clock flags out but opponent still has time
+  // Turn handoff if active speaker clock flags out but opponent still has time.
+  // Anything already typed is entered into the record rather than discarded --
+  // on a chess clock, what you had written when the flag fell is what you said.
   useEffect(() => {
-    if (prepSeconds > 0) return;
-    if (activeSpeaker === 'for' && remainingFor === 0 && remainingAgainst > 0) {
-      if (roomSync) {
-        roomSync.setRoomState((prev) => ({ ...prev, activeSpeaker: 'against' }));
-      }
-    } else if (activeSpeaker === 'against' && remainingAgainst === 0 && remainingFor > 0) {
-      if (roomSync) {
-        roomSync.setRoomState((prev) => ({ ...prev, activeSpeaker: 'for' }));
-      }
+    if (prepSeconds > 0 || handoffOpen) return;
+    const flagged =
+      activeSpeaker === 'for' && remainingFor === 0 && remainingAgainst > 0
+        ? 'for'
+        : activeSpeaker === 'against' && remainingAgainst === 0 && remainingFor > 0
+          ? 'against'
+          : null;
+    if (!flagged) return;
+
+    const draft = (draftRef.current || '').trim();
+    if (draft) {
+      draftRef.current = '';
+      setDraftResetToken((n) => n + 1);
+      handleSubmitTurn(draft);
+    } else if (roomSync) {
+      roomSync.setRoomState((prev) => ({
+        ...prev,
+        activeSpeaker: flagged === 'for' ? 'against' : 'for'
+      }));
     }
-  }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync]);
+  }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync, handoffOpen]);
 
   // Auto-conclude debate when both chess clocks expire
   useEffect(() => {
-    if (remainingFor === 0 && remainingAgainst === 0 && turns.length > 0) {
+    if (remainingFor === 0 && remainingAgainst === 0 && !handoffOpen) {
       const autoEndTimer = setTimeout(() => {
         handleRequestEnd();
       }, 1200);
       return () => clearTimeout(autoEndTimer);
     }
-  }, [remainingFor, remainingAgainst, turns.length]);
+  }, [remainingFor, remainingAgainst, handoffOpen]);
 
   // Submitting a turn
   const handleSubmitTurn = (text) => {
@@ -359,6 +378,8 @@ export function DebateStage({
             onRequestEnd={handleRequestEnd}
             onConcede={handleConcede}
             disabled={remainingFor === 0 && remainingAgainst === 0}
+            onDraftChange={(text) => { draftRef.current = text; }}
+            draftResetToken={draftResetToken}
             onTyping={roomSync?.broadcastTyping}
             opponentTyping={roomSync?.opponentTyping}
             userRole={effectiveRole}

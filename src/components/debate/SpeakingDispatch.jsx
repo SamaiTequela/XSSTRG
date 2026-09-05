@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Send, 
@@ -20,6 +20,8 @@ export default function SpeakingDispatch({
   side = 'for', // 'for' | 'against'
   isMyTurn = true,
   onSubmitTurn,
+  onDraftChange,
+  draftResetToken,
   onRequestEnd,
   onConcede,
   disabled = false,
@@ -31,6 +33,16 @@ export default function SpeakingDispatch({
 }) {
   const [speechText, setSpeechText] = useState('');
   const [scratchpadText, setScratchpadText] = useState('');
+
+  // Mirror the draft upward so the chess clock can enter it if time expires
+  useEffect(() => {
+    onDraftChange?.(speechText);
+  }, [speechText, onDraftChange]);
+
+  // Cleared by the parent once an expiring clock has entered the draft
+  useEffect(() => {
+    if (draftResetToken) setSpeechText('');
+  }, [draftResetToken]);
   const [judgeNotesText, setJudgeNotesText] = useState('');
   const [pasteWarning, setPasteWarning] = useState(false);
   const [internalClipboard, setInternalClipboard] = useState('');

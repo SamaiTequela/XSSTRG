@@ -791,6 +791,7 @@ export default function App() {
 
       {phase === 'verdict' && (
         <VerdictStage
+          initialSeconds={initialSeconds}
           motionText={motionText}
           nameFor={nameFor}
           nameAgainst={nameAgainst}

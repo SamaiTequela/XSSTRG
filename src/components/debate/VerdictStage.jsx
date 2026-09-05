@@ -26,6 +26,7 @@ import { playGavel, playClick } from '../../utils/soundEffects';
 const DEFAULT_TRANSCRIPT = [];
 
 export default function VerdictStage({
+  initialSeconds = 600,
   motionText,
   nameFor = 'Alex',
   nameAgainst = 'Sam',
@@ -108,6 +109,7 @@ export default function VerdictStage({
       {/* Header with Return to Main (verdict phase = non-active-debate) */}
       <DebateHeader
         roomCode={roomCode}
+        initialSeconds={initialSeconds}
         turnNo={turns.length || 0}
         theme={theme}
         onToggleTheme={onToggleTheme}
