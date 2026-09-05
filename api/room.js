@@ -14,7 +14,7 @@ import { getRedis, readRoom, writeRoom, roomExists, withLock } from "../lib/redi
 import {
   freshRoom, freshSpectator, applyAction, view,
   PER_SECS, MAX_MOTION, MAX_NAME, clip,
-  JUDGE_SCORING_MS, flagPending, settleFlag,
+  JUDGE_SCORING_MS, flagPending, settleFlag, settlePrep,
 } from "../lib/room-logic.js";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1
@@ -74,6 +74,9 @@ async function handleGet(req, res, redis) {
 
   // A clock that ran out moves the floor on the next read by anyone, so a room
   // cannot sit wedged waiting for the flagged player's own tab to wake up.
+  // settlePrep first: the stored room still holds an elapsed prep deadline,
+  // because view() resolves prep on a copy it never writes back.
+  settlePrep(room);
   if (flagPending(room)) {
     try {
       await withLock(redis, code, async () => {

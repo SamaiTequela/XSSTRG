@@ -217,8 +217,10 @@ console.log('\n=== H. An expired clock settles itself (the wedged-room bug) ==='
   const store = globalThis.__debateGameMemoryStore;
   const key = `poo:room:${wcode}`;
   const room = JSON.parse(store.map.get(key));
-  room.clock.prepUntil = null;
-  room.clock.turnStartedAt = Date.now() - 31000;
+  // This is the shape a real room has in storage: prep was never written back
+  // as settled, because view() resolves it on a copy it does not persist.
+  room.clock.prepUntil = Date.now() - 36000;
+  room.clock.turnStartedAt = null;
   store.map.set(key, JSON.stringify(room));
 
   // The OPPONENT polls. Nobody sent an action on Theo's behalf.
@@ -248,8 +250,8 @@ console.log('\n=== I. Both clocks dead ends the debate ===');
   const store = globalThis.__debateGameMemoryStore;
   const key = `poo:room:${dcode}`;
   const room = JSON.parse(store.map.get(key));
-  room.clock.prepUntil = null;
-  room.clock.turnStartedAt = Date.now() - 31000;
+  room.clock.prepUntil = Date.now() - 36000;
+  room.clock.turnStartedAt = null;
   room.clock.remaining.for = 0; // the opener used theirs up too
   store.map.set(key, JSON.stringify(room));
 
