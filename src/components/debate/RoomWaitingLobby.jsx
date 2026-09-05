@@ -109,6 +109,9 @@ export function RoomWaitingLobby({
   };
 
   const formatClock = (secs) => {
+    // Rounding announced the 30-second clock as "1 MIN A SIDE" while the
+    // chamber header read it as 0:30.
+    if (secs < 60) return `${secs} SEC A SIDE`;
     const mins = Math.round(secs / 60);
     return `${mins} MIN A SIDE`;
   };

@@ -575,6 +575,22 @@ export function useRoomSync({
     return null;
   }, [isOnline, roomId, syncServerView]);
 
+  // 12b. Ask the server to bring itself up to date and take the answer.
+  // A `ping` is enough: the server settles an expired clock before judging any
+  // action, so this is how a client says "my clock just ran out" without
+  // guessing at the new floor itself.
+  const nudgeRoom = useCallback(async () => {
+    if (!isOnline || !roomId) return null;
+    try {
+      const view = await sendRoomAction('ping', roomId);
+      if (view) syncServerView(view);
+      return view;
+    } catch (err) {
+      console.warn('Room nudge error:', err);
+      return null;
+    }
+  }, [isOnline, roomId, syncServerView]);
+
   // 13. Cleanly Leave Chamber
   const leaveChamber = useCallback(async () => {
     if (isOnline && roomId) {
@@ -616,6 +632,7 @@ export function useRoomSync({
     broadcastVerdict,
     broadcastRematch,
     leaveChamber,
+    nudgeRoom,
     onlineParticipantCount: serverView ? (
       (serverView.seats?.for?.filled ? 1 : 0) +
       (serverView.seats?.against?.filled ? 1 : 0) +

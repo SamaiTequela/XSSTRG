@@ -14,7 +14,7 @@ import { getRedis, readRoom, writeRoom, roomExists, withLock } from "../lib/redi
 import {
   freshRoom, freshSpectator, applyAction, view,
   PER_SECS, MAX_MOTION, MAX_NAME, clip,
-  JUDGE_SCORING_MS,
+  JUDGE_SCORING_MS, flagPending, settleFlag,
 } from "../lib/room-logic.js";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1
@@ -70,6 +70,22 @@ async function handleGet(req, res, redis) {
   const room = await readRoom(redis, code);
   if (!room) {
     return res.status(404).json({ error: "That room doesn't exist, or it has expired.", code: "NO_ROOM" });
+  }
+
+  // A clock that ran out moves the floor on the next read by anyone, so a room
+  // cannot sit wedged waiting for the flagged player's own tab to wake up.
+  if (flagPending(room)) {
+    try {
+      await withLock(redis, code, async () => {
+        const r2 = await readRoom(redis, code);
+        if (r2 && settleFlag(r2)) {
+          r2.v += 1;
+          await writeRoom(redis, r2);
+        }
+      });
+      const settledRoom = await readRoom(redis, code);
+      if (settledRoom) return res.status(200).json({ view: view(settledRoom, clientId) });
+    } catch (_) { /* a busy room settles on the next poll instead */ }
   }
 
   // Opportunistically finalize scoring phase if timer expired (no lock needed — idempotent)

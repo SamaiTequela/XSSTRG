@@ -146,7 +146,7 @@ export function DebateStage({
       draftRef.current = '';
       setDraftResetToken((n) => n + 1);
       handleSubmitTurn(draft);
-    } else if (roomSync) {
+    } else if (isOffline && roomSync) {
       // Nothing was typed, so no turn is recorded -- but the floor still moves,
       // and on one shared device that means the device moves too. Raise the
       // handover card and give the incoming speaker their prep, exactly as a
@@ -158,7 +158,14 @@ export function DebateStage({
         prepSeconds: prepSecondsFor(initialSeconds)
       }));
       setPrepSeconds(prepSecondsFor(initialSeconds));
-      if (isOffline) setHandoffOpen(true);
+      setHandoffOpen(true);
+    } else if (roomSync?.nudgeRoom) {
+      // Online, the server owns the floor. Moving it in local state told nobody,
+      // so the server kept the floor with the flagged speaker while both screens
+      // showed the opponent: their submit came back "It isn't your turn" and the
+      // room was stuck. Ask the server to settle and take the answer from the
+      // poll, so both devices turn over together.
+      roomSync.nudgeRoom();
     }
   }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync, handoffOpen, isOffline, initialSeconds]);
 

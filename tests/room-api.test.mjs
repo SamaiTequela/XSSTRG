@@ -200,5 +200,64 @@ const accepted = both.filter((r) => r.status === 200 && !r.error).length;
 const finalRace = await get(rcode, A);
 ok(finalRace.view.transcript.length === 1, `simultaneous submits record one turn (accepted=${accepted}, recorded=${finalRace.view.transcript.length})`);
 
+
+console.log('\n=== H. An expired clock settles itself (the wedged-room bug) ===');
+{
+  const w = await post({ action: 'create', clientId: A, name: 'Nadia', perSecs: 30, motion: 'm', role: 'for' });
+  const wcode = w.view.code;
+  await post({ action: 'join', code: wcode, clientId: B, name: 'Theo', seat: 'against' });
+  await post({ action: 'start', code: wcode, clientId: A });
+  await post({ action: 'turn', code: wcode, clientId: A, text: 'Opening speech.' });
+
+  // Theo now holds the floor. Burn his whole clock without him submitting
+  // anything -- the case where his tab is asleep, closed, or he simply sat there.
+  const store = globalThis.__debateGameMemoryStore;
+  const key = `poo:room:${wcode}`;
+  const room = JSON.parse(store.map.get(key));
+  room.clock.prepUntil = null;
+  room.clock.turnStartedAt = Date.now() - 31000;
+  store.map.set(key, JSON.stringify(room));
+
+  // The OPPONENT polls. Nobody sent an action on Theo's behalf.
+  const poll = await get(wcode, A);
+  ok(poll.view.clock.active === 'for', 'a read by the opponent moves the floor off the dead clock');
+  ok(poll.view.clock.remaining.against === 0, "the flagged speaker's clock is spent");
+  ok(poll.view.clock.remaining.for > 0, 'the opponent keeps the time they had');
+  ok(poll.view.transcript.length === 1, 'no empty speech is added to the record');
+  ok(poll.view.phase === 'debate', 'the debate continues');
+
+  // And the opponent can now actually speak, which was the wedge.
+  const spoke = await post({ action: 'speak', code: wcode, clientId: A });
+  ok(spoke.status === 200, 'the opponent can take the floor');
+  const submitted = await post({ action: 'turn', code: wcode, clientId: A, text: 'Second speech.' });
+  ok(submitted.status === 200 && !submitted.error, 'their submit is accepted instead of "It isn\'t your turn"');
+  ok(submitted.view.transcript.length === 2, 'the speech reaches the record');
+}
+
+console.log('\n=== I. Both clocks dead ends the debate ===');
+{
+  const d = await post({ action: 'create', clientId: A, name: 'Nadia', perSecs: 30, motion: 'm', role: 'for' });
+  const dcode = d.view.code;
+  await post({ action: 'join', code: dcode, clientId: B, name: 'Theo', seat: 'against' });
+  await post({ action: 'start', code: dcode, clientId: A });
+  await post({ action: 'turn', code: dcode, clientId: A, text: 'Opening.' });
+
+  const store = globalThis.__debateGameMemoryStore;
+  const key = `poo:room:${dcode}`;
+  const room = JSON.parse(store.map.get(key));
+  room.clock.prepUntil = null;
+  room.clock.turnStartedAt = Date.now() - 31000;
+  room.clock.remaining.for = 0; // the opener used theirs up too
+  store.map.set(key, JSON.stringify(room));
+
+  const poll = await get(dcode, B);
+  ok(poll.view.phase === 'review', 'two dead clocks end the debate rather than wedging it');
+  ok(poll.view.endedReason === 'flag', 'the record says the clocks ran out');
+
+  await post({ action: 'ready', code: dcode, clientId: A });
+  const judged = await post({ action: 'ready', code: dcode, clientId: B });
+  ok(judged.view.phase === 'judging', 'the match still reaches the adjudicator afterwards');
+}
+
 console.log(`\n${checks} checks, ${fails ? fails + ' FAILURES' : 'all passed'}`);
 process.exit(fails ? 1 : 0);
