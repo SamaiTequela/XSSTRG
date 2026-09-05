@@ -462,7 +462,14 @@ export default function App() {
         nameAgainst,
         transcript: activeTurns
       });
-      handleSubmitJudgement(fallback);
+      // The synthesised verdict decides the winner on word count. It must never
+      // be presented as the adjudicator's reasoning -- the screen reads the
+      // flag and labels itself accordingly.
+      handleSubmitJudgement({
+        ...fallback,
+        isFallback: true,
+        notice: 'The adjudicator could not be reached, so this result was settled locally on the record alone. It is not an AI judgement.'
+      });
     } finally {
       setIsAdjudicating(false);
     }

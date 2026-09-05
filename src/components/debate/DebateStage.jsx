@@ -9,6 +9,14 @@ import TranscriptRecord from './TranscriptRecord';
 import MobileControlBar from './MobileControlBar';
 import TurnHandoffModal from './TurnHandoffModal';
 import { playClick, playLowTimeTick, playClockFlagged } from '../../utils/soundEffects';
+import { prepMsFor } from '../../../lib/room-logic';
+
+// Prep before a speaker's own clock starts, in seconds. The online rooms take
+// this from the server's PREP_MS table; offline play reads the same table so a
+// hot-seat match and a two-device match run on the same rules. A flat 15s used
+// to be applied to every clock, which was half the speaking time on the 30s
+// clock and half the online allowance on the long ones.
+const prepSecondsFor = (secs) => Math.round(prepMsFor(Number(secs)) / 1000);
 
 export function DebateStage({
   userRole = 'for', // 'for' | 'against' | 'judge'
@@ -139,12 +147,20 @@ export function DebateStage({
       setDraftResetToken((n) => n + 1);
       handleSubmitTurn(draft);
     } else if (roomSync) {
+      // Nothing was typed, so no turn is recorded -- but the floor still moves,
+      // and on one shared device that means the device moves too. Raise the
+      // handover card and give the incoming speaker their prep, exactly as a
+      // submitted turn does, rather than switching the floor out from under
+      // whoever is holding the phone.
       roomSync.setRoomState((prev) => ({
         ...prev,
-        activeSpeaker: flagged === 'for' ? 'against' : 'for'
+        activeSpeaker: flagged === 'for' ? 'against' : 'for',
+        prepSeconds: prepSecondsFor(initialSeconds)
       }));
+      setPrepSeconds(prepSecondsFor(initialSeconds));
+      if (isOffline) setHandoffOpen(true);
     }
-  }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync, handoffOpen]);
+  }, [remainingFor, remainingAgainst, activeSpeaker, prepSeconds, roomSync, handoffOpen, isOffline, initialSeconds]);
 
   // Auto-conclude debate when both chess clocks expire
   useEffect(() => {
@@ -159,7 +175,16 @@ export function DebateStage({
   // Submitting a turn
   const handleSubmitTurn = (text) => {
     const currentName = activeSpeaker === 'for' ? nameFor : nameAgainst;
-    const nextSide = activeSpeaker === 'for' ? 'against' : 'for';
+    // A speaker whose flag has fallen cannot be handed the floor. It stays with
+    // the side that still has time -- which is what the server already does
+    // (`room.clock.active = outOfTime(opp) ? side : opp`). Passing it to a dead
+    // clock offered the hot-seat device to a player who could not speak, gave
+    // them prep on a 0:00 clock, then bounced the floor back with no handover.
+    const opponent = activeSpeaker === 'for' ? 'against' : 'for';
+    const opponentTime = opponent === 'for' ? remainingFor : remainingAgainst;
+    const nextSide = opponentTime > 0 ? opponent : activeSpeaker;
+    const floorChangesHands = nextSide !== activeSpeaker;
+    const nextPrep = prepSecondsFor(initialSeconds);
     const currentTurnNo = turns.length + 1;
     const nextTurnNo = currentTurnNo + 1;
 
@@ -185,15 +210,17 @@ export function DebateStage({
         transcript: nextTranscript,
         activeSpeaker: nextSide,
         turnNo: nextTurnNo,
-        prepSeconds: 15,
+        prepSeconds: nextPrep,
         remainingFor,
         remainingAgainst
       }));
     }
-    if (isOffline) {
+    // The handover card is a request to pass the device. Only raise it when the
+    // floor actually changes hands.
+    if (isOffline && floorChangesHands) {
       setHandoffOpen(true);
     }
-    setPrepSeconds(15);
+    setPrepSeconds(nextPrep);
   };
 
   const handleSkipPrep = () => {

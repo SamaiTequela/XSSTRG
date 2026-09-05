@@ -414,8 +414,15 @@ export async function judgeDebate({ motion, nameFor = "For", nameAgainst = "Agai
     }
   }
 
-  // Resilient heuristic fallback if remote calls fail
-  return generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript });
+  // Resilient heuristic fallback if remote calls fail. This one decides the
+  // debate on word count, so it is flagged: the verdict screen labels it as a
+  // provisional result instead of passing it off as the adjudicator's reasoning.
+  return {
+    ...generateFallbackVerdict({ motion, nameFor, nameAgainst, transcript }),
+    isFallback: true,
+    notice:
+      "The adjudicator could not be reached, so this result was settled locally on the record alone. It is not an AI judgement.",
+  };
 }
 
 export default async function handler(req, res) {

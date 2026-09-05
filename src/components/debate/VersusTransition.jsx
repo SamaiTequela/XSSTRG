@@ -13,7 +13,10 @@ export function VersusTransition({
 }) {
   const [countdown, setCountdown] = useState(3);
 
+  // Rounding to whole minutes announced the 30-second clock as "1 MIN a side",
+  // contradicting the chamber header, which reads it as 0:30.
   const formatMinutes = (secs) => {
+    if (secs < 60) return `${secs} SEC`;
     const mins = Math.round(secs / 60);
     return `${mins} MIN`;
   };

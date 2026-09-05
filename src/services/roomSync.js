@@ -510,7 +510,9 @@ export function useRoomSync({
 
     if (isOnline && roomId) {
       try {
-        await sendRoomAction('setVerdict', roomId, { verdict, notice: null });
+        // Carry the fallback notice to the other device: whoever fetched the
+        // verdict knows the adjudicator failed, and the room must say so too.
+        await sendRoomAction('setVerdict', roomId, { verdict, notice: verdict?.notice ?? null });
       } catch (err) {
         console.warn('Online setVerdict error:', err);
       }

@@ -202,8 +202,29 @@ export default function VerdictStage({
         </motion.div>        {/* Decision */}
         <div>
           <div className="eyebrow" style={{ color: winColor, letterSpacing: '0.16em', marginBottom: '6px' }}>
-            {isCrowdJury ? 'CROWD JURY VERDICT' : 'AI ADJUDICATOR VERDICT'}
+            {isCrowdJury
+              ? 'CROWD JURY VERDICT'
+              : verdict.isFallback
+                ? 'PROVISIONAL RESULT • NO ADJUDICATOR'
+                : 'AI ADJUDICATOR VERDICT'}
           </div>
+          {verdict.isFallback && verdict.notice && (
+            <div
+              style={{
+                margin: '0 auto 10px',
+                maxWidth: '60ch',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-pill)',
+                background: 'var(--brass-subtle)',
+                border: '1px solid var(--brass-line)',
+                fontSize: '0.85rem',
+                lineHeight: 1.45,
+                color: 'var(--ink-soft, var(--ink))'
+              }}
+            >
+              {verdict.notice}
+            </div>
+          )}
           <h2
             style={{
               fontFamily: 'Bricolage Grotesque',
