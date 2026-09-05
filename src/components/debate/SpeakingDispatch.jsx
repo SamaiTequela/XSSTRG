@@ -559,6 +559,9 @@ export default function SpeakingDispatch({
         }}
       >
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Only the speaker holding the floor may propose an end -- the
+              server refuses it from anyone else, so showing the waiting
+              player the button gave them one that silently did nothing. */}
           {isOffline ? (
             <button
               type="button"
@@ -572,7 +575,7 @@ export default function SpeakingDispatch({
               End debate
             </button>
           ) : (
-            <button
+            isMyTurn && <button
               type="button"
               onClick={() => { playClick(); onRequestEnd(); }}
               id="request-end-btn"

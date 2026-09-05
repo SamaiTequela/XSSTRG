@@ -138,10 +138,15 @@ export function DebateStage({
   // on a chess clock, what you had written when the flag fell is what you said.
   useEffect(() => {
     if (prepSeconds > 0 || handoffOpen) return;
+    // Whether the OPPONENT still has time decides where the floor goes next --
+    // it must not decide whether this speaker's words are kept. Requiring it
+    // here meant the second player to run out lost everything they had typed:
+    // by then both clocks read zero, this returned null, and the auto-conclude
+    // below ended the debate with their speech still sitting in the composer.
     const flagged =
-      activeSpeaker === 'for' && remainingFor === 0 && remainingAgainst > 0
+      activeSpeaker === 'for' && remainingFor === 0
         ? 'for'
-        : activeSpeaker === 'against' && remainingAgainst === 0 && remainingFor > 0
+        : activeSpeaker === 'against' && remainingAgainst === 0
           ? 'against'
           : null;
     if (!flagged) return;
@@ -151,7 +156,15 @@ export function DebateStage({
       draftRef.current = '';
       setDraftResetToken((n) => n + 1);
       handleSubmitTurn(draft);
-    } else if (isOffline && roomSync) {
+      return;
+    }
+
+    // Nothing typed. If the opponent is out of time too there is no floor to
+    // pass; the auto-conclude below closes the debate.
+    const opponentHasTime = flagged === 'for' ? remainingAgainst > 0 : remainingFor > 0;
+    if (!opponentHasTime) return;
+
+    if (isOffline && roomSync) {
       // Nothing was typed, so no turn is recorded -- but the floor still moves,
       // and on one shared device that means the device moves too. Raise the
       // handover card and give the incoming speaker their prep, exactly as a
@@ -185,7 +198,7 @@ export function DebateStage({
   }, [remainingFor, remainingAgainst, handoffOpen]);
 
   // Submitting a turn
-  const handleSubmitTurn = (text) => {
+  const handleSubmitTurn = (text, { concluding = false } = {}) => {
     const currentName = activeSpeaker === 'for' ? nameFor : nameAgainst;
     // A speaker whose flag has fallen cannot be handed the floor. It stays with
     // the side that still has time -- which is what the server already does
@@ -215,7 +228,7 @@ export function DebateStage({
       roomSync.broadcastTurn(newTurn, nextSide, nextTurnNo, {
         remainingFor,
         remainingAgainst
-      });
+      }, { requestEnd: concluding && !isOffline });
       // Optimistic update for responsive local UI
       roomSync.setRoomState((prev) => ({
         ...prev,
@@ -228,8 +241,8 @@ export function DebateStage({
       }));
     }
     // The handover card is a request to pass the device. Only raise it when the
-    // floor actually changes hands.
-    if (isOffline && floorChangesHands) {
+    // floor actually changes hands, and never when the debate is ending.
+    if (isOffline && floorChangesHands && !concluding) {
       setHandoffOpen(true);
     }
     setPrepSeconds(nextPrep);
@@ -252,6 +265,21 @@ export function DebateStage({
 
   const handleRequestEnd = async () => {
     playClick();
+
+    // Whatever is in the composer is part of what this speaker said, and
+    // ending the debate must not throw it away. Only the speaker holding the
+    // floor can add to the record, so this applies to them.
+    const draft = (draftRef.current || '').trim();
+    if (draft && isMyTurn) {
+      draftRef.current = '';
+      setDraftResetToken((n) => n + 1);
+      // Online this carries the end proposal with the speech, so the words
+      // land on the record and the opponent still has to agree to stop.
+      handleSubmitTurn(draft, { concluding: true });
+      if (isOffline && onTriggerDeliberation) onTriggerDeliberation();
+      return;
+    }
+
     if (!isOffline && roomSync?.broadcastRequestEnd) {
       await roomSync.broadcastRequestEnd();
       return;

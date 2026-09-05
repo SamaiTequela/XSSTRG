@@ -300,5 +300,71 @@ console.log('=== J. The deliberation clock closes scoring on its own ===');
   ok(closed.view.verdict.individualScores.length === 1, 'the scorecard shows one ballot, not a phantom second');
 }
 
+console.log('');
+console.log('=== K. Ending the debate needs both speakers, and keeps the speech ===');
+{
+  const e = await post({ action: 'create', clientId: A, name: 'Alex', perSecs: 600, motion: 'Ending rules', role: 'for' });
+  const ec = e.view.code;
+  await post({ action: 'join', code: ec, clientId: B, name: 'Sam', seat: 'against' });
+  await post({ action: 'start', code: ec, clientId: A });
+
+  const waiting = await post({ action: 'requestEnd', code: ec, clientId: B });
+  ok(waiting.status === 403, 'the speaker without the floor cannot propose an end');
+
+  // Alex has something written and wants to stop: the speech goes on the
+  // record and the proposal rides with it.
+  const spoke = await post({ action: 'turn', code: ec, clientId: A, text: 'My closing thoughts, and I am done.', requestEnd: true });
+  ok(spoke.status === 200, 'the speech is accepted');
+  ok(spoke.view.transcript.length === 1, 'the speech is on the record, not discarded');
+  ok(spoke.view.transcript[0].text === 'My closing thoughts, and I am done.', 'it is the text that was written');
+  ok(spoke.view.endRequest && spoke.view.endRequest.from === 'for', 'the end proposal stands after the speech');
+  ok(spoke.view.phase === 'debate', 'proposing does not end the debate on its own');
+
+  const selfAccept = await post({ action: 'respondEnd', code: ec, clientId: A, accept: true });
+  ok(selfAccept.status === 403, 'the proposer cannot accept their own proposal');
+  const stillRunning = await get(ec, B);
+  ok(stillRunning.view.phase === 'debate', 'the debate continues while the opponent has not agreed');
+
+  const declined = await post({ action: 'respondEnd', code: ec, clientId: B, accept: false });
+  ok(declined.view.phase === 'debate', 'a declined proposal leaves the debate running');
+  ok(!declined.view.endRequest, 'and clears the proposal');
+
+  await post({ action: 'turn', code: ec, clientId: B, text: 'Not yet, I have more to say.', requestEnd: true });
+  const agreed = await post({ action: 'respondEnd', code: ec, clientId: A, accept: true });
+  ok(agreed.view.phase === 'review', 'the debate ends only when the opponent agrees');
+  ok(agreed.view.transcript.length === 2, 'both speeches survive to the record');
+}
+
+console.log('');
+console.log('=== L. A speaker whose clock runs out last still keeps their speech ===');
+{
+  const f = await post({ action: 'create', clientId: A, name: 'Alex', perSecs: 30, motion: 'Last flag', role: 'for' });
+  const fc = f.view.code;
+  await post({ action: 'join', code: fc, clientId: B, name: 'Sam', seat: 'against' });
+  await post({ action: 'start', code: fc, clientId: A });
+
+  // Alex burns his clock and his words are entered as the flag falls.
+  const store = globalThis.__debateGameMemoryStore;
+  const key = 'poo:room:' + fc;
+  let room = JSON.parse(store.map.get(key));
+  room.clock.turnStartedAt = Date.now() - 31000;
+  room.clock.prepUntil = null;
+  store.map.set(key, JSON.stringify(room));
+  const first = await post({ action: 'turn', code: fc, clientId: A, text: 'Alex ran out mid-sentence.', flagged: true });
+  ok(first.view.transcript.length === 1, 'the first speaker to flag keeps their words');
+  ok(first.view.clock.active === 'against', 'and the floor passes to the side with time');
+
+  // Now Sam burns hers too. Both clocks are dead at this point -- the case
+  // that used to drop the speech on the floor.
+  room = JSON.parse(store.map.get(key));
+  room.clock.turnStartedAt = Date.now() - 31000;
+  room.clock.prepUntil = null;
+  store.map.set(key, JSON.stringify(room));
+  const second = await post({ action: 'turn', code: fc, clientId: B, text: 'Sam ran out mid-sentence too.', flagged: true });
+  ok(second.view.transcript.length === 2, 'the last speaker to flag keeps their words as well');
+  ok(second.view.transcript[1].text === 'Sam ran out mid-sentence too.', 'and it is what she wrote');
+  ok(second.view.phase === 'review', 'two dead clocks then end the debate');
+}
+
 console.log(`\n${checks} checks, ${fails ? fails + ' FAILURES' : 'all passed'}`);
 process.exit(fails ? 1 : 0);

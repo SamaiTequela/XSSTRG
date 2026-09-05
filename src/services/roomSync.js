@@ -428,7 +428,7 @@ export function useRoomSync({
   }, [dispatchMessage, userProfile.role]);
 
   // 4. Submit Turn across all tabs & online API
-  const broadcastTurn = useCallback(async (turn, nextSpeaker, nextTurnNo, clocks = {}) => {
+  const broadcastTurn = useCallback(async (turn, nextSpeaker, nextTurnNo, clocks = {}, opts = {}) => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -457,7 +457,10 @@ export function useRoomSync({
         const v = await sendRoomAction('turn', roomId, {
           text: turn.text,
           passed: !!turn.passed,
-          flagged: !!turn.flagged
+          flagged: !!turn.flagged,
+          // Ends the debate only with the opponent's agreement; the server
+          // records the speech and leaves the proposal standing for them.
+          requestEnd: !!opts.requestEnd
         });
         if (v) syncServerView(v);
       } catch (err) {
