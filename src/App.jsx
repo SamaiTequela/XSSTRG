@@ -520,11 +520,14 @@ export default function App() {
     if (!roomCode || phase !== 'lobby') return;
     resumedRef.current = true;
 
-    let cancelled = false;
+    // No abort flag here. roomSync is a fresh object on every render, so this
+    // effect re-runs constantly; a cleanup that cancelled the in-flight request
+    // killed the resume before its fetch returned, every time, while the ref
+    // above stopped it ever being retried. The ref alone makes it run once.
     (async () => {
       try {
         const view = await fetchRoomView(roomCode);
-        if (cancelled || !view) return;
+        if (!view) return;
         // Only resume for someone who actually holds a place in the room.
         const mySide = view.you?.side;
         const iAmJuror = !!view.you?.isSpectator;
@@ -552,8 +555,6 @@ export default function App() {
         // The room is gone or expired; the parlour is the right place to be.
       }
     })();
-
-    return () => { cancelled = true; };
   }, [roomCode, phase, roomSync, transitionToPhase]);
 
   // Sent once per review phase, not once per poll.
