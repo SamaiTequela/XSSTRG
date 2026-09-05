@@ -369,8 +369,20 @@ export function useRoomSync({
 
     poll();
 
+    // Say we are still here. A seat records lastSeen only when its player sends
+    // an action, and polling is a plain read, so a speaker who was quietly
+    // reading their opponent's speech looked disconnected within twenty seconds
+    // while the opponent's own long turn made them look gone too. Nothing used
+    // the resulting `stale` flag, so it was never noticed. A heartbeat makes it
+    // mean what it says: no word from this player for twenty seconds.
+    const heartbeat = setInterval(() => {
+      if (!active) return;
+      sendRoomAction('ping', roomId).catch(() => { /* the next one will do */ });
+    }, 10000);
+
     return () => {
       active = false;
+      clearInterval(heartbeat);
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
     };
   }, [isOnline, roomId, syncServerView]);

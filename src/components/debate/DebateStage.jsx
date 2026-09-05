@@ -303,6 +303,14 @@ export function DebateStage({
     }
   };
 
+  // Has the other speaker gone quiet? The server marks a seat stale after
+  // twenty seconds without word. Nothing showed it, so a player whose opponent
+  // had closed their laptop just watched a clock tick with no explanation.
+  const opponentSide = effectiveRole === 'for' ? 'against' : 'for';
+  const opponentStale = !isOffline && effectiveRole !== 'judge'
+    && !!roomSync?.serverView?.seats?.[opponentSide]?.filled
+    && !!roomSync?.serverView?.seats?.[opponentSide]?.stale;
+
   // Mutual end request from opponent
   const endRequest = roomState.endRequest || roomSync?.serverView?.endRequest;
   const isEndRequestFromOpponent = endRequest && endRequest.from !== effectiveRole;
@@ -324,6 +332,36 @@ export function DebateStage({
         initialSeconds={initialSeconds}
         initialHideCode={initialHideCode}
       />
+
+      {/* Opponent presence */}
+      <AnimatePresence>
+        {opponentStale && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--against-bg)',
+              border: '1px solid var(--against-line)',
+              fontSize: '0.88rem',
+              color: 'var(--ink)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '9px'
+            }}
+          >
+            <X size={16} color="var(--against)" />
+            <span>
+              <strong>{opponentName}</strong> has gone quiet — no word from their
+              device for a moment. The clock does not stop for a lost connection:
+              if it is their turn, it keeps running and the floor passes to you
+              when it expires.
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Incoming Mutual End Proposal Banner */}
       <AnimatePresence>
