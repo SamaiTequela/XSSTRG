@@ -71,7 +71,10 @@ ok(notHost.status === 403, 'only the host may start');
 const started = await post({ action: 'start', code, clientId: A });
 ok(started.status === 200 && started.view.phase === 'debate', 'host starts the debate');
 ok(started.view.clock.active === 'for', 'proposition opens');
-ok(started.view.clock.remaining.for === 600000, 'clock seeded in ms');
+// The opening speaker's clock starts at once, so a millisecond or two of the
+// 600s may already be spent by the time the view is built.
+ok(started.view.clock.remaining.for > 599000 && started.view.clock.remaining.for <= 600000,
+  `clock seeded in ms (${started.view.clock.remaining.for})`);
 
 const wrongTurn = await post({ action: 'turn', code, clientId: B, text: 'not my turn' });
 ok(wrongTurn.status === 409 && wrongTurn.code === 'NOT_YOUR_TURN', 'the idle speaker cannot take the floor');
