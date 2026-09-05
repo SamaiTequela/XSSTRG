@@ -309,6 +309,12 @@ export default function App() {
       } else {
         url.searchParams.set('phase', nextPhase);
       }
+      // The host's address bar never carried the code -- only invitees had one,
+      // from the link. A host who refreshed was returned to the parlour with no
+      // way back into a match that was still running on the server.
+      if (gameMode !== 'offline' && roomCode) {
+        url.searchParams.set('room', roomCode);
+      }
       if (replace) {
         window.history.replaceState({ phase: nextPhase, gameMode, roomCode }, '', url.toString());
       } else {
@@ -484,6 +490,55 @@ export default function App() {
       setIsAdjudicating(false);
     }
   }, [gameMode, roomSync.roomState?.transcript, motionText, nameFor, nameAgainst, transitionToPhase, handleSubmitJudgement]);
+
+  // Resume a match that is still running after a reload.
+  //
+  // A refresh, a phone reopening the tab, a browser restoring the session --
+  // all of it dropped the player back into the parlour while their seat was
+  // still held on the server and their opponent waited. The seat belongs to a
+  // client id that now survives the tab, so the room can simply be asked what
+  // is going on and the screen put back where it was.
+  const resumedRef = React.useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    if (!roomCode || phase !== 'lobby') return;
+    resumedRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const view = await fetchRoomView(roomCode);
+        if (cancelled || !view) return;
+        // Only resume for someone who actually holds a place in the room.
+        const mySide = view.you?.side;
+        const iAmJuror = !!view.you?.isSpectator;
+        if (!mySide && !iAmJuror) return;
+
+        setGameMode(view.config?.judgeMode ? 'crowd_jury' : 'online');
+        if (view.config?.perSecs) setInitialSeconds(view.config.perSecs);
+        if (view.config?.motion) setMotionText(view.config.motion);
+        if (view.seats?.for?.name) setNameFor(view.seats.for.name);
+        if (view.seats?.against?.name) setNameAgainst(view.seats.against.name);
+        setUserRole(mySide || 'judge');
+        if (mySide) setUserName(mySide === 'for' ? view.seats.for.name : view.seats.against.name);
+        else if (view.you?.spectatorName) setUserName(view.you.spectatorName);
+        if (view.verdict) setVerdict(view.verdict);
+        roomSync.syncServerView?.(view);
+
+        // The server's phase is the truth, not whatever the old URL said.
+        const target = view.phase === 'debate' ? 'debate'
+          : view.phase === 'verdict' ? 'verdict'
+          : view.phase === 'scoring' ? 'scoring'
+          : (view.phase === 'review' || view.phase === 'judging') ? 'deliberating'
+          : 'room_lobby';
+        transitionToPhase(target, true);
+      } catch {
+        // The room is gone or expired; the parlour is the right place to be.
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [roomCode, phase, roomSync, transitionToPhase]);
 
   // Sent once per review phase, not once per poll.
   const readySentRef = React.useRef(false);
