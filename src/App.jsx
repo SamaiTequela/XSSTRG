@@ -6,7 +6,7 @@ import DebateStage from './components/debate/DebateStage';
 import JuryScoringStage from './components/debate/JuryScoringStage';
 import DeliberationLoadingScreen from './components/debate/DeliberationLoadingScreen';
 import VerdictStage from './components/debate/VerdictStage';
-import { useRoomSync, createOnlineRoom, joinOnlineRoom } from './services/roomSync';
+import { useRoomSync, createOnlineRoom, joinOnlineRoom, fetchRoomView } from './services/roomSync';
 import { playGavel } from './utils/soundEffects';
 import { 
   Flame, 
@@ -569,15 +569,34 @@ export default function App() {
     } else {
       // Online Chamber or Crowd Jury: Create or Join backend room and enter waiting lobby
       if (chosenAction === 'join') {
+        // Look at the room before joining it. An invite link carries only a
+        // code, so the joiner's lobby had no idea whether the room was an
+        // ordinary chamber or a Crowd Jury, and always tried to take a bench:
+        // the third person to open a jury link was turned away with "This room
+        // already has two speakers", which made the jury -- the entire point of
+        // the mode -- unreachable by link. The room itself is the authority on
+        // what it is and what seats are left.
+        const preview = await fetchRoomView(chosenCode).catch(() => null);
+        const isJuryRoom = !!preview?.config?.judgeMode;
+        const benchesFull = !!(preview?.seats?.for?.filled && preview?.seats?.against?.filled);
+        const wantsJury = role === 'spectator' || role === 'judge';
+        const joinAsJuror = isJuryRoom && (wantsJury || benchesFull);
+
+        if (isJuryRoom) setGameMode('crowd_jury');
+
         const view = await joinOnlineRoom({
           code: chosenCode,
           name,
-          role: mode === 'crowd_jury' ? (role === 'spectator' || role === 'judge' ? 'spectator' : 'player') : 'player',
-          seat: role === 'for' || role === 'against' ? role : null
+          role: joinAsJuror ? 'spectator' : 'player',
+          seat: !joinAsJuror && (role === 'for' || role === 'against') ? role : null
         });
         if (!view) {
           throw new Error('Could not join room. Please check the room code.');
         }
+        // Trust the room over the lobby's guess for the mode as well.
+        setGameMode(view.config?.judgeMode ? 'crowd_jury' : 'online');
+        if (view.config?.perSecs) setInitialSeconds(view.config.perSecs);
+        if (view.config?.motion) setMotionText(view.config.motion);
         // The server normalises the code; take its word for it, never the input.
         if (view.code) setRoomCode(view.code);
         roomSync.syncServerView?.(view);

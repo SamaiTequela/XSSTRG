@@ -141,7 +141,13 @@ export function ParlourLobby({
     if (mode === 'online' && selectedRole === 'random') {
       resolvedRole = Math.random() < 0.5 ? 'for' : 'against';
     } else if (mode === 'jury') {
-      resolvedRole = selectedRole === 'spectator' ? 'spectator' : (selectedRole || 'spectator');
+      // The Crowd Jury form has no bench picker: it names the field "YOUR JUROR
+      // NAME" and states the seat is the spectator jury. selectedRole still
+      // carried 'for' over from the online form, so it seated the juror as
+      // Proposition with an empty jury -- the opposite of what the screen said.
+      // Everyone arrives on the jury; the antechamber's bench buttons are how
+      // the two debaters are chosen.
+      resolvedRole = 'spectator';
     } else if (mode === 'offline') {
       resolvedRole = 'for';
     }
