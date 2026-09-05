@@ -272,6 +272,7 @@ export function useRoomSync({
     setRoomState((prev) => {
       const remainingFor = Math.round((v.clock?.remaining?.for ?? 0) / 1000);
       const remainingAgainst = Math.round((v.clock?.remaining?.against ?? 0) / 1000);
+      const clockIsLive = v.phase !== 'lobby';
       const prepSeconds = v.clock?.prepUntil
         ? Math.max(0, Math.round((v.clock.prepUntil - (v.serverNow || Date.now())) / 1000))
         : 0;
@@ -281,8 +282,11 @@ export function useRoomSync({
         phase: v.phase,
         activeSpeaker: v.clock?.active || prev.activeSpeaker,
         turnNo: v.turnNo || prev.turnNo,
-        remainingFor: typeof remainingFor === 'number' && !isNaN(remainingFor) ? remainingFor : prev.remainingFor,
-        remainingAgainst: typeof remainingAgainst === 'number' && !isNaN(remainingAgainst) ? remainingAgainst : prev.remainingAgainst,
+        // A room still in the lobby reports remaining 0/0 because the clock has
+        // not been started yet -- that is "not started", not "both flags fell".
+        // Taking it literally armed the debate floor with two dead clocks.
+        remainingFor: clockIsLive && !isNaN(remainingFor) ? remainingFor : prev.remainingFor,
+        remainingAgainst: clockIsLive && !isNaN(remainingAgainst) ? remainingAgainst : prev.remainingAgainst,
         prepSeconds,
         transcript: v.transcript || prev.transcript,
         verdict: v.verdict || prev.verdict,

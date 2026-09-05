@@ -55,6 +55,12 @@ export function DebateStage({
   const draftRef = useRef('');
   const [draftResetToken, setDraftResetToken] = useState(0);
 
+  // Both clocks read 0 before a room's clock is started as well as after both
+  // flags fall. Only the second case may end the debate, so require that this
+  // floor has actually seen time on a clock first.
+  const clockHasRunRef = useRef(false);
+  if (remainingFor > 0 || remainingAgainst > 0) clockHasRunRef.current = true;
+
   // Determine if it is currently this tab's turn to speak
   const isMyTurn = effectiveRole === 'judge' ? false : (effectiveRole === activeSpeaker);
 
@@ -81,33 +87,36 @@ export function DebateStage({
   // reached the incoming speaker yet, and the card promises the clock is stopped.
   useEffect(() => {
     if (handoffOpen) return undefined;
-    const timer = setInterval(() => {
-      if (prepSeconds > 0) {
-        setPrepSeconds((prev) => Math.max(0, prev - 1));
-      } else if (activeSpeaker === 'for') {
-        setRemainingFor((prev) => {
-          if (prev <= 1) {
-            playClockFlagged();
-            return 0;
-          }
-          if (prev <= 30 && prev % 2 === 0) {
-            playLowTimeTick();
-          }
-          return prev - 1;
-        });
-      } else if (activeSpeaker === 'against') {
-        setRemainingAgainst((prev) => {
-          if (prev <= 1) {
-            playClockFlagged();
-            return 0;
-          }
-          if (prev <= 30 && prev % 2 === 0) {
-            playLowTimeTick();
-          }
-          return prev - 1;
-        });
+
+    // Charge real elapsed time rather than one second per tick. Browsers
+    // throttle timers in hidden or minimised tabs (Chrome down to roughly once
+    // a minute), so a decrementing counter simply stops -- backgrounding the
+    // tab used to freeze the running clock and hand back the time for free.
+    let last = Date.now();
+    const drain = (spent) => (prev) => {
+      const next = Math.max(0, prev - spent);
+      if (next === 0) {
+        if (prev > 0) playClockFlagged();
+        return 0;
       }
-    }, 1000);
+      if (next <= 30 && next % 2 === 0) playLowTimeTick();
+      return next;
+    };
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const spent = Math.floor((now - last) / 1000);
+      if (spent <= 0) return;
+      last += spent * 1000;
+
+      if (prepSeconds > 0) {
+        setPrepSeconds((prev) => Math.max(0, prev - spent));
+      } else if (activeSpeaker === 'for') {
+        setRemainingFor(drain(spent));
+      } else if (activeSpeaker === 'against') {
+        setRemainingAgainst(drain(spent));
+      }
+    }, 250);
     return () => clearInterval(timer);
   }, [activeSpeaker, prepSeconds, handoffOpen]);
 
@@ -139,7 +148,7 @@ export function DebateStage({
 
   // Auto-conclude debate when both chess clocks expire
   useEffect(() => {
-    if (remainingFor === 0 && remainingAgainst === 0 && !handoffOpen) {
+    if (clockHasRunRef.current && remainingFor === 0 && remainingAgainst === 0 && !handoffOpen) {
       const autoEndTimer = setTimeout(() => {
         handleRequestEnd();
       }, 1200);
