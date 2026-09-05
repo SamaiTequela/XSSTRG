@@ -13,7 +13,8 @@
     "build": "vite build",
     "build:ui": "vite build",
     "preview": "vite preview",
-    "deploy": "vercel deploy --prod"
+    "deploy": "vercel deploy --prod",
+    "test": "node tests/room-logic.test.mjs && node tests/room-api.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

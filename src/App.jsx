@@ -363,6 +363,16 @@ export default function App() {
     setVerdict(null);
     setRoomCode('');
     setGameMode('offline');
+    // Drop the room from the URL as well. transitionToPhase only strips it when
+    // its own `gameMode` closure already reads 'offline', which it does not on
+    // the render that leaves an online chamber -- so the dead code survived in
+    // the address bar and pushed the lobby back into "join" on that old room.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('room');
+      url.searchParams.delete('code');
+      window.history.replaceState({ phase: 'lobby', gameMode: 'offline', roomCode: '' }, '', url.toString());
+    } catch {}
     transitionToPhase('lobby');
   }, [roomSync, transitionToPhase]);
 
@@ -565,6 +575,8 @@ export default function App() {
         if (!view) {
           throw new Error('Could not join room. Please check the room code.');
         }
+        // The server normalises the code; take its word for it, never the input.
+        if (view.code) setRoomCode(view.code);
         roomSync.syncServerView?.(view);
         if (view.you?.side) {
           setUserRole(view.you.side);
@@ -586,6 +598,12 @@ export default function App() {
         if (!view) {
           throw new Error('Could not create room. Please try again.');
         }
+        // The requested code is only a suggestion: if it is already taken the
+        // server allocates a different one. Showing the requested code anyway
+        // sent invitees to a room the host was not in -- reliably so, because
+        // the lobby seeded the next create with the previous room's code, and
+        // that room stays alive for six hours. Always adopt the real code.
+        if (view.code) setRoomCode(view.code);
         roomSync.syncServerView?.(view);
         if (view.you?.side) {
           setUserRole(view.you.side);

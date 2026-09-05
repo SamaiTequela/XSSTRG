@@ -270,9 +270,24 @@ export function useRoomSync({
     setServerView(v);
 
     setRoomState((prev) => {
-      const remainingFor = Math.round((v.clock?.remaining?.for ?? 0) / 1000);
-      const remainingAgainst = Math.round((v.clock?.remaining?.against ?? 0) / 1000);
+      // Floor, don't round: 600ms left is not "one second left", and rounding up
+      // left a spent clock reading 0:01 while the server considered it empty.
+      const remainingFor = Math.floor((v.clock?.remaining?.for ?? 0) / 1000);
+      const remainingAgainst = Math.floor((v.clock?.remaining?.against ?? 0) / 1000);
       const clockIsLive = v.phase !== 'lobby';
+      // A poll answers with a snapshot taken a round-trip ago, so it can arrive
+      // showing more time than the local clock has already counted down. Letting
+      // it win made a running clock tick backwards and stall at 0:01 instead of
+      // flagging. The running side's clock may only fall; the idle side's is
+      // taken from the server, which is authoritative for time it banked.
+      // Only while the debate is already under way: a clock legitimately jumps
+      // back up to full when a new match starts, so the clamp must not survive
+      // a phase change or it would open the rematch with two dead clocks.
+      const runningSide = v.clock?.running && v.phase === 'debate' && prev.phase === 'debate'
+        ? v.clock?.active
+        : null;
+      const notAbove = (side, next, prevVal) =>
+        side === runningSide && typeof prevVal === 'number' ? Math.min(next, prevVal) : next;
       const prepSeconds = v.clock?.prepUntil
         ? Math.max(0, Math.round((v.clock.prepUntil - (v.serverNow || Date.now())) / 1000))
         : 0;
@@ -285,8 +300,12 @@ export function useRoomSync({
         // A room still in the lobby reports remaining 0/0 because the clock has
         // not been started yet -- that is "not started", not "both flags fell".
         // Taking it literally armed the debate floor with two dead clocks.
-        remainingFor: clockIsLive && !isNaN(remainingFor) ? remainingFor : prev.remainingFor,
-        remainingAgainst: clockIsLive && !isNaN(remainingAgainst) ? remainingAgainst : prev.remainingAgainst,
+        remainingFor: clockIsLive && !isNaN(remainingFor)
+          ? notAbove('for', remainingFor, prev.remainingFor)
+          : prev.remainingFor,
+        remainingAgainst: clockIsLive && !isNaN(remainingAgainst)
+          ? notAbove('against', remainingAgainst, prev.remainingAgainst)
+          : prev.remainingAgainst,
         prepSeconds,
         transcript: v.transcript || prev.transcript,
         verdict: v.verdict || prev.verdict,
