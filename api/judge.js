@@ -174,6 +174,12 @@ const clampScore = (n) => {
   return Number.isFinite(n) ? Math.max(0, Math.min(10, n)) : null;
 };
 
+// Asked for strengths where there are none, a model tends to answer with a
+// placeholder rather than an empty list. Rendered verbatim, the verdict shows a
+// bullet under STRONG POINTS reading "none", which looks like a broken screen.
+// An empty list is the honest representation, and the UI already omits it.
+const PLACEHOLDER = /^(none|n\/?a|nil|null|-+|\.+|no( |-)?(strengths?|weaknesses?|points?|comments?)\b.*|nothing( of note| notable| to (note|report))?)[.!]?$/i;
+
 const strArr = (x) => {
   if (!Array.isArray(x)) return [];
   return x
@@ -183,6 +189,7 @@ const strArr = (x) => {
       return "";
     })
     .filter(Boolean)
+    .filter((s) => !PLACEHOLDER.test(s))
     .slice(0, 5);
 };
 

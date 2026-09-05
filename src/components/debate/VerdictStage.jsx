@@ -67,11 +67,20 @@ export default function VerdictStage({
 
   const winnerRationale = verdict?.rationale || null;
 
-  // Strengths & weaknesses — only real AI content, no defaults
-  const forStrengths = (verdict?.for?.strengths || []).filter(Boolean);
-  const forWeaknesses = (verdict?.for?.weaknesses || []).filter(Boolean);
-  const againstStrengths = (verdict?.against?.strengths || []).filter(Boolean);
-  const againstWeaknesses = (verdict?.against?.weaknesses || []).filter(Boolean);
+  // Strengths & weaknesses — only real AI content, no defaults. A model asked
+  // for strengths a speaker did not have answers "none" rather than returning
+  // an empty list; printed as a bullet that reads like a broken screen. The
+  // server strips these too, but verdicts also arrive from room state and from
+  // older clients, so the screen refuses to render a placeholder as a point.
+  const PLACEHOLDER = /^(none|n\/?a|nil|null|-+|\.+|no[ -]?(strengths?|weaknesses?|points?|comments?)\b.*|nothing( of note| notable| to (note|report))?)[.!]?$/i;
+  const realPoints = (list) => (list || [])
+    .filter(Boolean)
+    .filter((item) => !PLACEHOLDER.test(String(item?.point ?? item).trim()));
+
+  const forStrengths = realPoints(verdict?.for?.strengths);
+  const forWeaknesses = realPoints(verdict?.for?.weaknesses);
+  const againstStrengths = realPoints(verdict?.against?.strengths);
+  const againstWeaknesses = realPoints(verdict?.against?.weaknesses);
 
   const hasForAnalysis = forStrengths.length > 0 || forWeaknesses.length > 0;
   const hasAgainstAnalysis = againstStrengths.length > 0 || againstWeaknesses.length > 0;
