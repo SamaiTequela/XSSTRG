@@ -491,6 +491,22 @@ export default function App() {
     }
   }, [gameMode, roomSync.roomState?.transcript, motionText, nameFor, nameAgainst, transitionToPhase, handleSubmitJudgement]);
 
+  // Keep the room in the address bar whenever we are in one. transitionToPhase
+  // cannot do this reliably on its own: it captures roomCode in a closure, and
+  // the code is set in the same handler that changes phase, so on the render
+  // that enters a freshly created room it still holds the previous value.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (gameMode !== 'offline' && roomCode) {
+        if (url.searchParams.get('room') !== roomCode) {
+          url.searchParams.set('room', roomCode);
+          window.history.replaceState(window.history.state, '', url.toString());
+        }
+      }
+    } catch {}
+  }, [gameMode, roomCode]);
+
   // Resume a match that is still running after a reload.
   //
   // A refresh, a phone reopening the tab, a browser restoring the session --
