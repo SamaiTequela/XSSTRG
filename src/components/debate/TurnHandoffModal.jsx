@@ -13,6 +13,7 @@ export default function TurnHandoffModal({
   nextSpeaker = 'Sam',
   side = 'against',
   remainingTime = 241,
+  prepSeconds = 0,
   onDismiss
 }) {
   if (!isOpen) return null;
@@ -113,8 +114,18 @@ export default function TurnHandoffModal({
             <span>Clock reads <strong className="font-mono">{formatSecs(remainingTime)}</strong></span>
           </div>
 
-          <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', maxWidth: '34ch' }}>
-            Review the arguments above and prepare your reply. The clock runs as soon as you proceed.
+          <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', maxWidth: '36ch' }}>
+            Take the device and read the record behind this card.
+            {prepSeconds > 0 ? (
+              <>
+                {' '}Proceeding opens{' '}
+                <strong className="font-mono">{formatSecs(prepSeconds)}</strong>
+                {' '}of preparation time — your clock starts only when you take
+                the floor, or when prep runs out.
+              </>
+            ) : (
+              <> Your clock starts as soon as you proceed.</>
+            )}
           </p>
 
           <button
@@ -128,7 +139,11 @@ export default function TurnHandoffModal({
               marginTop: '8px'
             }}
           >
-            <span>I have the floor — Begin turn</span>
+            <span>
+              {prepSeconds > 0
+                ? 'I have the device — Begin preparation'
+                : 'I have the floor — Begin turn'}
+            </span>
             <ArrowRight size={16} />
           </button>
         </motion.div>

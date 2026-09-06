@@ -564,6 +564,7 @@ export function DebateStage({
         nextSpeaker={activeSpeaker === 'for' ? nameFor : nameAgainst}
         side={activeSpeaker}
         remainingTime={activeSpeaker === 'for' ? remainingFor : remainingAgainst}
+        prepSeconds={prepSecondsFor(initialSeconds)}
         onDismiss={() => setHandoffOpen(false)}
       />
 
