@@ -25,6 +25,10 @@ export default function SpeakingDispatch({
   onRequestEnd,
   onConcede,
   disabled = false,
+  // Prep time is for thinking, not for writing. While it runs, this
+  // speaker's clock is not, so the box stays shut: a speech composed on
+  // prep time is a speech composed for free.
+  prepLocked = false,
   onTyping,
   opponentTyping = { isTyping: false, wordCount: 0, speaker: '' },
   userRole = 'for', // 'for' | 'against' | 'judge'
@@ -60,6 +64,7 @@ export default function SpeakingDispatch({
   const estimatedSeconds = Math.round(wordCount / 2.3); // ~140 wpm spoken
 
   const handleTextChange = (e) => {
+    if (prepLocked) return;
     const val = e.target.value;
     setSpeechText(val);
     onTyping?.(val);
@@ -102,7 +107,7 @@ export default function SpeakingDispatch({
   };
 
   const handleSubmit = () => {
-    if (!speechText.trim() || disabled) return;
+    if (!speechText.trim() || disabled || prepLocked) return;
     playTurnSubmit();
     onSubmitTurn(speechText);
     setSpeechText('');
@@ -443,8 +448,10 @@ export default function SpeakingDispatch({
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             onKeyDown={handleKeyDown}
-            disabled={disabled}
-            placeholder="Make your case. Rebut what was just argued, bring reasoned evidence, and land your point clearly..."
+            disabled={disabled || prepLocked}
+            placeholder={prepLocked
+              ? 'Preparation time. Your clock is not running yet -- take the floor to begin writing.'
+              : 'Make your case. Rebut what was just argued, bring reasoned evidence, and land your point clearly...'}
             aria-label="Your argument"
             style={{
               width: '100%',

@@ -515,6 +515,7 @@ export function DebateStage({
             onRequestEnd={handleRequestEnd}
             onConcede={handleConcede}
             disabled={remainingFor === 0 && remainingAgainst === 0}
+            prepLocked={prepSeconds > 0}
             onDraftChange={(text) => { draftRef.current = text; }}
             draftResetToken={draftResetToken}
             onTyping={roomSync?.broadcastTyping}
