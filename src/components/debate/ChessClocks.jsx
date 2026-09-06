@@ -9,6 +9,14 @@ function formatSeconds(secs) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
+
+// How much of a speaker's allowance is left, and how alarmed to look about it.
+function meterFor(remaining, total) {
+  const pct = total > 0 ? Math.max(0, Math.min(100, (remaining / total) * 100)) : 0;
+  const colour = pct <= 10 ? 'var(--against)' : pct <= 25 ? 'var(--brass)' : null;
+  return { pct, colour };
+}
+
 export function ChessClocks({
   nameFor = 'Alex',
   nameAgainst = 'Sam',
@@ -16,6 +24,7 @@ export function ChessClocks({
   remainingAgainst = 600,
   activeSpeaker = 'for', // 'for' | 'against' | null
   turnNo = 1,
+  totalSeconds = 600,
   prepUntil = null,
   isFlaggedFor = false,
   isFlaggedAgainst = false
@@ -179,6 +188,17 @@ export function ChessClocks({
             </span>
           )}
         </div>
+
+        {/* Time remaining as a bar: the shape of the clock, not just its digits. */}
+        <div className="clock-meter">
+          <div
+            className="clock-meter__fill"
+            style={{
+              width: `${meterFor(remainingFor, totalSeconds).pct}%`,
+              background: meterFor(remainingFor, totalSeconds).colour || 'var(--for)'
+            }}
+          />
+        </div>
       </motion.div>
 
       {/* Center Spine (VS & Turn Counter) */}
@@ -209,15 +229,19 @@ export function ChessClocks({
         <div
           className="font-mono"
           style={{
-            fontSize: '0.72rem',
-            color: 'var(--ink-muted)',
-            marginTop: '4px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            textAlign: 'center'
+            marginTop: '7px',
+            fontSize: '0.68rem',
+            color: 'var(--brass)',
+            letterSpacing: '0.08em',
+            textAlign: 'center',
+            padding: '3px 9px',
+            borderRadius: 'var(--radius-pill)',
+            border: '1px solid var(--brass-line, var(--brass))',
+            background: 'var(--brass-light)',
+            whiteSpace: 'nowrap'
           }}
         >
-          Turn {turnNo}
+          {turnNo}
         </div>
       </div>
 
@@ -358,6 +382,16 @@ export function ChessClocks({
               WAITING
             </span>
           )}
+        </div>
+
+        <div className="clock-meter">
+          <div
+            className="clock-meter__fill"
+            style={{
+              width: `${meterFor(remainingAgainst, totalSeconds).pct}%`,
+              background: meterFor(remainingAgainst, totalSeconds).colour || 'var(--against)'
+            }}
+          />
         </div>
       </motion.div>
     </div>

@@ -726,6 +726,9 @@ export default function App() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Lit from above, falling away at the edges, with the benches
+          faintly coloured where they sit. Purely atmospheric. */}
+      <div className="chamber-atmosphere" aria-hidden="true" />
       {/* Dev toolbar (stripped in production) */}
       {isDev && (
         <aside

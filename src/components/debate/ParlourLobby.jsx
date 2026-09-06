@@ -256,80 +256,28 @@ export function ParlourLobby({
           <label className="eyebrow" style={{ color: 'var(--ink-secondary)' }}>
             CHAMBER MODE
           </label>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
-              gap: '6px',
-              background: 'var(--ground)',
-              padding: '4px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--line)'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => { playClick(); setMode('offline'); }}
-              style={{
-                padding: '9px 14px',
-                fontSize: '0.86rem',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: mode === 'offline' ? 'var(--ink)' : 'transparent',
-                color: mode === 'offline' ? 'var(--ground)' : 'var(--ink-secondary)',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <Laptop size={15} />
-              Offline chamber
-            </button>
-            <button
-              type="button"
-              onClick={() => { playClick(); setMode('online'); }}
-              style={{
-                padding: '9px 14px',
-                fontSize: '0.86rem',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: mode === 'online' ? 'var(--ink)' : 'transparent',
-                color: mode === 'online' ? 'var(--ground)' : 'var(--ink-secondary)',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <Wifi size={15} />
-              Online chamber
-            </button>
-            <button
-              type="button"
-              onClick={() => { playClick(); setMode('jury'); }}
-              style={{
-                padding: '9px 14px',
-                fontSize: '0.86rem',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: mode === 'jury' ? 'var(--ink)' : 'transparent',
-                color: mode === 'jury' ? 'var(--ground)' : 'var(--ink-secondary)',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <Scale size={15} />
-              Crowd Jury
-            </button>
+          {/* Three ways to play, each saying what it actually is rather than
+              being a row of identical toggles. */}
+          <div className="mode-grid">
+            {[
+              { id: 'offline', icon: <Laptop size={16} />, title: 'Offline chamber',
+                hint: 'One device, passed between two speakers.' },
+              { id: 'online', icon: <Wifi size={16} />, title: 'Online chamber',
+                hint: 'Two devices, one room code, judged by AI.' },
+              { id: 'jury', icon: <Scale size={16} />, title: 'Crowd Jury',
+                hint: 'Two speakers, a panel of friends scoring.' }
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={mode === m.id}
+                onClick={() => { playClick(); setMode(m.id); }}
+                className={`mode-card${mode === m.id ? ' is-active' : ''}`}
+              >
+                <span className="mode-card__title">{m.icon}{m.title}</span>
+                <span className="mode-card__hint">{m.hint}</span>
+              </button>
+            ))}
           </div>
 
           {/* Create vs Join Tab for Online / Crowd Jury */}
@@ -466,7 +414,7 @@ export function ParlourLobby({
                   <button
                     type="button"
                     onClick={handleSaveCustomMotion}
-                    className="btn-primary"
+                    className="btn-primary cta-primary"
                     style={{ padding: '6px 14px', fontSize: '0.82rem', background: 'var(--brass)' }}
                   >
                     Save Motion
@@ -780,7 +728,7 @@ export function ParlourLobby({
             type="button"
             onClick={handleStart}
             id="enter-chamber-btn"
-            className="btn-primary"
+            className="btn-primary cta-primary"
             style={{
               width: '100%',
               padding: '14px 24px',

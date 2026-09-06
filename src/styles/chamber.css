@@ -1,0 +1,267 @@
+/* ============================================================
+   THE CHAMBER — atmosphere, and the pieces the game is played on.
+   Everything here is presentational. No rule of the game lives in
+   this file, and nothing in it should change what the server thinks.
+   ============================================================ */
+
+/* ---------- Ambience -------------------------------------------------
+   A debating chamber is lit from above and falls away into the dark at
+   the edges. Two faint pools of colour sit where the benches are: green
+   to the left for the proposition, red to the right for the opposition.
+   Fixed, behind everything, and inert to the pointer.                */
+.chamber-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -10%, var(--brass-glow) 0%, transparent 55%),
+    radial-gradient(60% 50% at 0% 40%, var(--for-glow) 0%, transparent 60%),
+    radial-gradient(60% 50% at 100% 40%, var(--against-glow) 0%, transparent 60%);
+  opacity: 0.55;
+}
+
+/* The faint grain of the room. Cheap: one repeating gradient, no image. */
+.chamber-atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.014) 0px,
+    rgba(255, 255, 255, 0.014) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* ---------- Masthead -------------------------------------------------- */
+.masthead-crest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-pill);
+  background: var(--brass-light);
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  box-shadow: 0 0 26px var(--brass-glow);
+}
+
+.masthead-rule {
+  height: 2px;
+  width: 74px;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--brass), transparent);
+}
+
+/* ---------- Mode cards ------------------------------------------------
+   The three ways to play, presented as choices rather than as a row of
+   toggle buttons: each says what it actually is.                      */
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 10px;
+}
+
+.mode-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 15px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  transition: transform 0.18s ease, border-color 0.18s ease,
+              box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.mode-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.mode-card:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.mode-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.mode-card__hint {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+
+.mode-card.is-active {
+  border-color: var(--brass);
+  background: var(--brass-light);
+  box-shadow: 0 0 0 1px var(--brass), 0 8px 22px -10px var(--brass-glow);
+}
+
+.mode-card.is-active .mode-card__title { color: var(--brass); }
+.mode-card.is-active .mode-card__hint { color: var(--ink-secondary); }
+
+/* A brass wafer in the corner of the chosen bench. */
+.mode-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--brass);
+  box-shadow: 0 0 10px var(--brass);
+}
+
+/* ---------- Clock cards ---------------------------------------------- */
+/* The bar under a clock: how much of this speaker's time is left, at a
+   glance, without reading the digits. */
+.clock-meter {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  max-width: 190px;
+  margin: 10px auto 0;
+  border-radius: var(--radius-pill);
+  background: var(--line-subtle);
+  overflow: hidden;
+}
+
+.clock-meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  transition: width 0.9s linear, background-color 0.4s ease;
+}
+
+/* The speaker holding the floor breathes; the one waiting does not. */
+.clock-live {
+  animation: chamber-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes chamber-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.72; }
+}
+
+/* Under twenty seconds the pulse quickens — the flag is coming. */
+.clock-urgent {
+  animation: chamber-urgent 0.85s ease-in-out infinite;
+}
+
+@keyframes chamber-urgent {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.82; transform: scale(1.035); }
+}
+
+/* A live indicator that actually looks live. */
+.live-beacon {
+  position: relative;
+  display: inline-flex;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.live-beacon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid currentColor;
+  opacity: 0.55;
+  animation: chamber-ripple 1.9s ease-out infinite;
+}
+
+@keyframes chamber-ripple {
+  0%   { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* ---------- The record ------------------------------------------------ */
+.turn-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.turn-card:hover {
+  transform: translateX(2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- Buttons --------------------------------------------------- */
+.cta-primary {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.cta-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 10px 26px -10px var(--brass-glow);
+}
+
+.cta-primary:active { transform: translateY(0); }
+
+/* A single sweep of light across the primary action on hover. */
+.cta-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+
+.cta-primary:hover::after {
+  animation: chamber-sweep 0.75s ease-out;
+}
+
+@keyframes chamber-sweep {
+  0%   { left: -60%; opacity: 0.9; }
+  100% { left: 130%; opacity: 0; }
+}
+
+/* ---------- Respect the reader ---------------------------------------
+   Anyone who has asked their system for less movement gets none of it. */
+@media (prefers-reduced-motion: reduce) {
+  .clock-live,
+  .clock-urgent,
+  .live-beacon::after,
+  .cta-primary:hover::after {
+    animation: none !important;
+  }
+  .mode-card,
+  .cta-primary,
+  .turn-card {
+    transition: none !important;
+  }
+  .mode-card:hover,
+  .cta-primary:hover,
+  .turn-card:hover {
+    transform: none !important;
+  }
+}

@@ -85,8 +85,9 @@ export default function TranscriptRecord({ turns = [], nameFor = 'Alex', nameAga
             return (
               <motion.div
                 key={turn.id || index}
-                initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="turn-card"
+                initial={{ opacity: 0, y: 14, scale: 0.98, x: isFor ? -18 : 18 }}
+                animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
                 transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                 style={{
                   alignSelf: isFor ? 'flex-start' : 'flex-end',

@@ -446,6 +446,7 @@ export function DebateStage({
         remainingAgainst={remainingAgainst}
         activeSpeaker={activeSpeaker}
         turnNo={turnNo}
+        totalSeconds={initialSeconds}
         prepUntil={prepSeconds > 0}
         isFlaggedFor={remainingFor === 0}
         isFlaggedAgainst={remainingAgainst === 0}
