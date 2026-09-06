@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Swords, Clock, Scale, Shield, Sparkles, ArrowRight } from 'lucide-react';
-import { playTurnSubmit, playClick } from '../../utils/soundEffects';
+import { playTurnSubmit, playClick, playCountdownBlip } from '../../utils/soundEffects';
 
 export function VersusTransition({
   motionText,
@@ -12,6 +12,19 @@ export function VersusTransition({
   onComplete
 }) {
   const [countdown, setCountdown] = useState(3);
+  // The clash is a flash of light as the doors open. It is presentational
+  // only: entering is deferred by its length, never conditional on it.
+  const [clashing, setClashing] = useState(false);
+  const enteredRef = useRef(false);
+
+  const START = 3;
+
+  const enterChamber = useCallback(() => {
+    if (enteredRef.current) return; // the button and the timer both land here
+    enteredRef.current = true;
+    setClashing(true);
+    setTimeout(() => onComplete?.(), 260);
+  }, [onComplete]);
 
   // Rounding to whole minutes announced the 30-second clock as "1 MIN a side",
   // contradicting the chamber header, which reads it as 0:30.
@@ -30,15 +43,17 @@ export function VersusTransition({
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          onComplete?.();
+          try { playCountdownBlip(true); } catch {}
+          enterChamber();
           return 0;
         }
+        try { playCountdownBlip(false); } catch {}
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [onComplete]);
+  }, [enterChamber]);
 
   return (
     <div
@@ -47,7 +62,7 @@ export function VersusTransition({
         inset: 0,
         zIndex: 9999,
         background: 'radial-gradient(ellipse at center, var(--surface, #14161b) 0%, var(--bg, #0b0c0e) 100%)',
-        color: 'var(--ink, #f5f5f5)',
+        color: 'var(--ink)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -90,9 +105,9 @@ export function VersusTransition({
           gap: '8px',
           padding: '6px 14px',
           borderRadius: '999px',
-          background: 'rgba(212, 175, 55, 0.1)',
-          border: '1px solid rgba(212, 175, 55, 0.3)',
-          color: 'var(--accent, #d4af37)',
+          background: 'var(--brass-glow)',
+          border: '1px solid var(--brass)',
+          color: 'var(--brass)',
           fontFamily: 'Space Mono, monospace',
           fontSize: '0.78rem',
           letterSpacing: '0.12em',
@@ -122,8 +137,8 @@ export function VersusTransition({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           style={{
-            background: 'linear-gradient(135deg, rgba(46, 125, 50, 0.12) 0%, rgba(18, 20, 24, 0.8) 100%)',
-            border: '1px solid rgba(76, 175, 80, 0.3)',
+            background: 'linear-gradient(135deg, var(--for-glow) 0%, var(--surface) 100%)',
+            border: '1px solid var(--for-line)',
             borderRadius: '16px',
             padding: '24px 20px',
             textAlign: 'right',
@@ -135,7 +150,7 @@ export function VersusTransition({
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.74rem',
               letterSpacing: '0.14em',
-              color: '#4caf50',
+              color: 'var(--for)',
               fontWeight: 700,
               textTransform: 'uppercase',
               marginBottom: '6px',
@@ -146,14 +161,14 @@ export function VersusTransition({
             }}
           >
             <span>PROPOSITION</span>
-            <Shield size={14} color="#4caf50" />
+            <Shield size={14} color="var(--for)" />
           </div>
           <div
             style={{
               fontFamily: 'Cinzel, Georgia, serif',
               fontSize: '1.9rem',
               fontWeight: 700,
-              color: 'var(--ink, #ffffff)',
+              color: 'var(--ink)',
               lineHeight: 1.1
             }}
           >
@@ -162,7 +177,7 @@ export function VersusTransition({
           <div
             style={{
               fontSize: '0.8rem',
-              color: 'var(--ink-muted, #a0a0a0)',
+              color: 'var(--ink-muted)',
               marginTop: '4px'
             }}
           >
@@ -176,27 +191,36 @@ export function VersusTransition({
           animate={{ scale: 1, rotate: 0 }}
           transition={{ duration: 0.5, delay: 0.2, type: 'spring', stiffness: 200 }}
           style={{
+            position: 'relative',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center'
           }}
         >
+          {/* The countdown, drawn rather than counted: a brass ring that
+              empties over the beats before the floor opens. */}
           <div
+            className="versus-ring"
+            style={{ '--ring': Math.max(0, countdown) / START }}
+            aria-hidden="true"
+          />
+          <div
+            className="versus-badge"
             style={{
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--surface, #1e2229) 0%, #0d0e11 100%)',
-              border: '2px solid var(--accent, #d4af37)',
+              background: 'linear-gradient(135deg, var(--surface) 0%, var(--chamber) 100%)',
+              border: '2px solid var(--brass)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 24px rgba(212, 175, 55, 0.3)',
+              boxShadow: '0 0 24px var(--brass-glow)',
               fontFamily: 'Cinzel, Georgia, serif',
               fontSize: '1.25rem',
               fontWeight: 900,
-              color: 'var(--accent, #d4af37)'
+              color: 'var(--brass)'
             }}
           >
             VS
@@ -209,8 +233,8 @@ export function VersusTransition({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           style={{
-            background: 'linear-gradient(135deg, rgba(211, 47, 47, 0.12) 0%, rgba(18, 20, 24, 0.8) 100%)',
-            border: '1px solid rgba(244, 67, 54, 0.3)',
+            background: 'linear-gradient(135deg, var(--against-glow) 0%, var(--surface) 100%)',
+            border: '1px solid var(--against-line)',
             borderRadius: '16px',
             padding: '24px 20px',
             textAlign: 'left',
@@ -222,7 +246,7 @@ export function VersusTransition({
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.74rem',
               letterSpacing: '0.14em',
-              color: '#f44336',
+              color: 'var(--against)',
               fontWeight: 700,
               textTransform: 'uppercase',
               marginBottom: '6px',
@@ -232,7 +256,7 @@ export function VersusTransition({
               gap: '6px'
             }}
           >
-            <Swords size={14} color="#f44336" />
+            <Swords size={14} color="var(--against)" />
             <span>OPPOSITION</span>
           </div>
           <div
@@ -240,7 +264,7 @@ export function VersusTransition({
               fontFamily: 'Cinzel, Georgia, serif',
               fontSize: '1.9rem',
               fontWeight: 700,
-              color: 'var(--ink, #ffffff)',
+              color: 'var(--ink)',
               lineHeight: 1.1
             }}
           >
@@ -249,7 +273,7 @@ export function VersusTransition({
           <div
             style={{
               fontSize: '0.8rem',
-              color: 'var(--ink-muted, #a0a0a0)',
+              color: 'var(--ink-muted)',
               marginTop: '4px'
             }}
           >
@@ -266,8 +290,8 @@ export function VersusTransition({
         style={{
           maxWidth: '720px',
           width: '100%',
-          background: 'var(--surface, #14171d)',
-          border: '1px solid var(--line, rgba(255,255,255,0.1))',
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
           borderRadius: '14px',
           padding: '18px 24px',
           textAlign: 'center',
@@ -279,7 +303,7 @@ export function VersusTransition({
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.72rem',
             letterSpacing: '0.1em',
-            color: 'var(--accent, #d4af37)',
+            color: 'var(--brass)',
             textTransform: 'uppercase',
             marginBottom: '6px'
           }}
@@ -291,7 +315,7 @@ export function VersusTransition({
             fontFamily: 'Cinzel, Georgia, serif',
             fontSize: '1.18rem',
             lineHeight: 1.4,
-            color: 'var(--ink, #f5f5f5)',
+            color: 'var(--ink)',
             fontStyle: 'italic'
           }}
         >
@@ -305,7 +329,7 @@ export function VersusTransition({
             gap: '18px',
             marginTop: '12px',
             fontSize: '0.78rem',
-            color: 'var(--ink-muted, #8c8c8c)'
+            color: 'var(--ink-muted)'
           }}
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -314,7 +338,7 @@ export function VersusTransition({
           </span>
           <span>•</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <Sparkles size={13} color="var(--accent, #d4af37)" />
+            <Sparkles size={13} color="var(--brass)" />
             {gameMode === 'crowd_jury' ? 'Crowd Jury Panel' : 'AI Adjudicator Protocol'}
           </span>
         </div>
@@ -331,20 +355,20 @@ export function VersusTransition({
           style={{
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.84rem',
-            color: 'var(--ink-muted, #8c8c8c)'
+            color: 'var(--ink-muted)'
           }}
         >
-          Entering chamber in <strong style={{ color: 'var(--accent, #d4af37)' }}>{countdown}s</strong>...
+          Entering chamber in <strong style={{ color: 'var(--brass)' }}>{countdown}s</strong>...
         </div>
         <button
           type="button"
           onClick={() => {
             playClick();
-            onComplete?.();
+            enterChamber();
           }}
           style={{
-            background: 'var(--accent, #d4af37)',
-            color: '#0b0c0e',
+            background: 'var(--brass)',
+            color: 'var(--surface)',
             border: 'none',
             borderRadius: '999px',
             padding: '8px 18px',
@@ -361,6 +385,7 @@ export function VersusTransition({
           <ArrowRight size={14} />
         </button>
       </motion.div>
+      {clashing && <div className="versus-clash" aria-hidden="true" />}
     </div>
   );
 }

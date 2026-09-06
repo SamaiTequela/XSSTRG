@@ -21,7 +21,7 @@ import {
   X
 } from 'lucide-react';
 import DebateHeader from './DebateHeader';
-import { playGavel, playClick } from '../../utils/soundEffects';
+import { playGavel, playClick, playVerdictChord } from '../../utils/soundEffects';
 
 const DEFAULT_TRANSCRIPT = [];
 
@@ -50,7 +50,8 @@ export default function VerdictStage({
 
   useEffect(() => {
     try { playGavel(); } catch {}
-  }, []);
+    try { playVerdictChord((verdict?.winner || 'draw') === 'draw'); } catch {}
+  }, [verdict?.winner]);
 
   const winner = verdict?.winner || 'draw';
   const isForWinner = winner === 'for';
@@ -175,6 +176,7 @@ export default function VerdictStage({
 
       {/* Winner Announcement Banner */}
       <motion.div
+        className="verdict-banner"
         initial={{ opacity: 0, scale: 0.97, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 340, damping: 26 }}
@@ -195,10 +197,12 @@ export default function VerdictStage({
       >
         {/* Trophy */}
         <motion.div
+          className="verdict-trophy"
           initial={{ scale: 0, rotate: -15 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', delay: 0.12, stiffness: 400, damping: 20 }}
           style={{
+            position: 'relative',
             width: '64px',
             height: '64px',
             borderRadius: '50%',
@@ -258,7 +262,7 @@ export default function VerdictStage({
             </span>
             {hasScores && (
               <span
-                className="font-mono"
+                className="font-mono verdict-score"
                 style={{
                   background: 'var(--surface)',
                   border: `1px solid ${winBorder}`,

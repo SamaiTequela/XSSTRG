@@ -4,6 +4,7 @@ import { Timer, Zap, Lock, ShieldCheck } from 'lucide-react';
 
 export function PrepTimeBanner({ 
   prepSecondsLeft = 14, 
+  prepSecondsTotal = 0,
   speakerName = 'Alex',
   side = 'for', // 'for' | 'against' - incoming active speaker side
   userRole = 'for', // 'for' | 'against' | 'judge' - client's identity
@@ -12,6 +13,11 @@ export function PrepTimeBanner({
   if (prepSecondsLeft <= 0) return null;
 
   const isFor = side === 'for';
+  // Prep is short and it matters, so it drains along the banner's edge the
+  // way the chess clocks drain under the digits. Falls back to the count
+  // itself if no total was passed, rather than showing an empty rail.
+  const prepTotal = prepSecondsTotal > 0 ? prepSecondsTotal : prepSecondsLeft;
+  const prepFraction = Math.max(0, Math.min(1, prepSecondsLeft / prepTotal));
   // STRICT ROLE CHECK: Skip prep is ONLY permissible if client identity matches incoming speaker
   const isAuthorizedSpeaker = userRole === side;
 
@@ -31,9 +37,20 @@ export function PrepTimeBanner({
         borderRadius: 'var(--radius-md)',
         background: isFor ? 'var(--for-bg)' : 'var(--against-bg)',
         border: `1px dashed ${isFor ? 'var(--for-line)' : 'var(--against-line)'}`,
-        boxShadow: 'var(--shadow-sm)'
+        boxShadow: 'var(--shadow-sm)',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
+      <div className="prep-meter" aria-hidden="true">
+        <div
+          className="prep-meter__fill"
+          style={{
+            width: `${prepFraction * 100}%`,
+            background: isFor ? 'var(--for)' : 'var(--against)'
+          }}
+        />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div 
           style={{

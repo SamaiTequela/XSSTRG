@@ -27,7 +27,10 @@ export function ChessClocks({
   totalSeconds = 600,
   prepUntil = null,
   isFlaggedFor = false,
-  isFlaggedAgainst = false
+  isFlaggedAgainst = false,
+  // Which bench has just taken the floor, for the half-second it takes the
+  // room to notice. Presentational: it never decides whose clock runs.
+  floorTaken = null
 }) {
   const isForActive = activeSpeaker === 'for';
   const isAgainstActive = activeSpeaker === 'against';
@@ -52,6 +55,7 @@ export function ChessClocks({
     >
       {/* Proposition Clock (For the Motion) */}
       <motion.div
+        className={floorTaken === 'for' ? 'floor-taken' : undefined}
         animate={{
           backgroundColor: isForActive ? 'var(--for-bg)' : 'var(--surface)',
           borderColor: isForActive ? 'var(--for)' : 'transparent'
@@ -65,7 +69,8 @@ export function ChessClocks({
           textAlign: 'center',
           borderTop: isForActive ? '4px solid var(--for)' : '4px solid transparent',
           position: 'relative',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          '--floor-tint': 'var(--for-glow)'
         }}
       >
         {/* Speaker Meta & Identity */}
@@ -247,6 +252,7 @@ export function ChessClocks({
 
       {/* Opposition Clock (Against the Motion) */}
       <motion.div
+        className={floorTaken === 'against' ? 'floor-taken' : undefined}
         animate={{
           backgroundColor: isAgainstActive ? 'var(--against-bg)' : 'var(--surface)',
           borderColor: isAgainstActive ? 'var(--against)' : 'transparent'
@@ -260,7 +266,8 @@ export function ChessClocks({
           textAlign: 'center',
           borderTop: isAgainstActive ? '4px solid var(--against)' : '4px solid transparent',
           position: 'relative',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          '--floor-tint': 'var(--against-glow)'
         }}
       >
         {/* Speaker Meta & Identity */}

@@ -245,14 +245,153 @@
   100% { left: 130%; opacity: 0; }
 }
 
+/* ---------- Entering the chamber -------------------------------------
+   The versus screen is the only moment before the clock starts, so it
+   is allowed to be theatrical. A brass ring drains around the VS badge
+   for the length of the countdown, and the badge itself tightens as the
+   doors open.                                                        */
+.versus-ring {
+  position: absolute;
+  inset: -9px;
+  border-radius: var(--radius-pill);
+  background: conic-gradient(var(--brass) calc(var(--ring, 1) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  opacity: 0.85;
+  transition: background 0.95s linear;
+  pointer-events: none;
+}
+
+.versus-badge {
+  animation: chamber-versus-tick 1s ease-out infinite;
+}
+
+@keyframes chamber-versus-tick {
+  0%       { transform: scale(1); }
+  8%       { transform: scale(1.07); }
+  30%, 100% { transform: scale(1); }
+}
+
+/* The clash: one white flash across the whole screen as the floor opens. */
+.versus-clash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.5) 0%, transparent 60%);
+  animation: chamber-clash 0.42s ease-out forwards;
+}
+
+@keyframes chamber-clash {
+  0%   { opacity: 0.9; transform: scale(0.85); }
+  100% { opacity: 0;   transform: scale(1.35); }
+}
+
+/* ---------- Preparation ----------------------------------------------
+   Prep time is short and it matters, so it gets the same treatment as
+   the chess clocks: a bar draining left to right along the banner's
+   bottom edge, rather than a number to be read.                      */
+.prep-meter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  overflow: hidden;
+  background: transparent;
+}
+
+.prep-meter__fill {
+  height: 100%;
+  border-bottom-left-radius: var(--radius-md);
+  transition: width 0.95s linear, background-color 0.4s ease;
+}
+
+/* ---------- The floor changing hands ---------------------------------
+   When the bench changes, the incoming clock takes a brief wash of its
+   own colour. Half a second, once, and then the room is calm again.  */
+.floor-taken {
+  animation: chamber-floor-taken 0.65s ease-out;
+}
+
+@keyframes chamber-floor-taken {
+  0%   { box-shadow: inset 0 0 0 0 var(--floor-tint, var(--brass-glow)); }
+  30%  { box-shadow: inset 0 0 34px 6px var(--floor-tint, var(--brass-glow)); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+/* ---------- The decision ---------------------------------------------
+   The verdict banner is the payoff of the whole game. One slow sweep of
+   brass light crosses it as it lands -- once, not on a loop -- and the
+   trophy sends out a single ring behind it.                          */
+.verdict-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -50%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, var(--brass-glow), transparent);
+  transform: skewX(-16deg);
+  pointer-events: none;
+  animation: chamber-verdict-sweep 1.5s ease-out 0.25s both;
+}
+
+@keyframes chamber-verdict-sweep {
+  0%   { left: -50%; opacity: 0; }
+  25%  { opacity: 1; }
+  100% { left: 130%; opacity: 0; }
+}
+
+.verdict-trophy::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: var(--radius-pill);
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: chamber-verdict-ring 1.4s ease-out 0.3s;
+}
+
+@keyframes chamber-verdict-ring {
+  0%   { transform: scale(0.85); opacity: 0.65; }
+  100% { transform: scale(1.6);  opacity: 0; }
+}
+
+/* The scoreline arrives a beat after the name, and settles. */
+.verdict-score {
+  animation: chamber-score-settle 0.5s ease-out 0.55s both;
+}
+
+@keyframes chamber-score-settle {
+  0%   { transform: scale(0.82); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
 /* ---------- Respect the reader ---------------------------------------
    Anyone who has asked their system for less movement gets none of it. */
 @media (prefers-reduced-motion: reduce) {
   .clock-live,
   .clock-urgent,
   .live-beacon::after,
-  .cta-primary:hover::after {
+  .cta-primary:hover::after,
+  .versus-badge,
+  .versus-clash,
+  .floor-taken,
+  .verdict-banner::before,
+  .verdict-trophy::after,
+  .verdict-score {
     animation: none !important;
+  }
+  .versus-clash,
+  .verdict-banner::before,
+  .verdict-trophy::after {
+    display: none !important;
+  }
+  .versus-ring,
+  .prep-meter__fill {
+    transition: none !important;
   }
   .mode-card,
   .cta-primary,

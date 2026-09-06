@@ -8,7 +8,7 @@ import SpeakingDispatch from './SpeakingDispatch';
 import TranscriptRecord from './TranscriptRecord';
 import MobileControlBar from './MobileControlBar';
 import TurnHandoffModal from './TurnHandoffModal';
-import { playClick, playLowTimeTick, playClockFlagged } from '../../utils/soundEffects';
+import { playClick, playLowTimeTick, playClockFlagged, playFloorChange } from '../../utils/soundEffects';
 import { prepMsFor } from '../../../lib/room-logic';
 
 // Prep before a speaker's own clock starts, in seconds. The online rooms take
@@ -56,6 +56,9 @@ export function DebateStage({
   const [remainingFor, setRemainingFor] = useState(roomState.remainingFor ?? initialSeconds);
   const [remainingAgainst, setRemainingAgainst] = useState(roomState.remainingAgainst ?? initialSeconds);
   const [prepSeconds, setPrepSeconds] = useState(roomState.prepSeconds ?? 0);
+  // The bench that has just been handed the floor, cleared again once the
+  // room has acknowledged it. Nothing reads this but the clocks.
+  const [floorTaken, setFloorTaken] = useState(null);
   const [mobileTab, setMobileTab] = useState('floor'); // 'floor' | 'record'
   const [handoffOpen, setHandoffOpen] = useState(false);
 
@@ -132,6 +135,23 @@ export function DebateStage({
     }, 250);
     return () => clearInterval(timer);
   }, [activeSpeaker, prepSeconds, handoffOpen]);
+
+  // The floor opening is its own moment: prep has run out and this speaker's
+  // clock is now running. Announced once, on the transition -- never on a
+  // re-render, and never on the first mount of the stage.
+  const prevPrepRef = useRef(null);
+  useEffect(() => {
+    const prev = prevPrepRef.current;
+    prevPrepRef.current = prepSeconds;
+    if (prev === null) return;            // first pass: nothing has changed yet
+    if (!(prev > 0 && prepSeconds === 0)) return;
+    if (!activeSpeaker) return;
+
+    try { playFloorChange(activeSpeaker); } catch {}
+    setFloorTaken(activeSpeaker);
+    const clear = setTimeout(() => setFloorTaken(null), 700);
+    return () => clearTimeout(clear);
+  }, [prepSeconds, activeSpeaker]);
 
   // Turn handoff if active speaker clock flags out but opponent still has time.
   // Anything already typed is entered into the record rather than discarded --
@@ -448,6 +468,7 @@ export function DebateStage({
         turnNo={turnNo}
         totalSeconds={initialSeconds}
         prepUntil={prepSeconds > 0}
+        floorTaken={floorTaken}
         isFlaggedFor={remainingFor === 0}
         isFlaggedAgainst={remainingAgainst === 0}
       />
@@ -457,6 +478,7 @@ export function DebateStage({
         {prepSeconds > 0 && (
           <PrepTimeBanner
             prepSecondsLeft={prepSeconds}
+            prepSecondsTotal={prepSecondsFor(initialSeconds)}
             speakerName={activeSpeaker === 'for' ? nameFor : nameAgainst}
             side={activeSpeaker}
             userRole={isOffline ? activeSpeaker : effectiveRole}

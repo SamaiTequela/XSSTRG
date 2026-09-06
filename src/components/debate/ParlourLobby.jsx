@@ -10,6 +10,8 @@ import {
   Scale, 
   Sun, 
   Moon, 
+  Volume2, 
+  VolumeX, 
   ArrowRight, 
   Sparkles,
   Wifi,
@@ -18,7 +20,7 @@ import {
   EyeOff,
   Dices
 } from 'lucide-react';
-import { playClick } from '../../utils/soundEffects';
+import { playClick, isSoundEnabled, setSoundEnabled } from '../../utils/soundEffects';
 
 export const CURATED_MOTIONS = [
   "Social media platforms should require government-verified identity before granting posting privileges.",
@@ -49,6 +51,7 @@ export function ParlourLobby({
   onEnterChamber
 }) {
   const [mode, setMode] = useState('offline'); // 'offline' | 'online' | 'jury'
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const [motionText, setMotionText] = useState(initialMotion);
   const [isEditingMotion, setIsEditingMotion] = useState(false);
   const [customMotionText, setCustomMotionText] = useState(initialMotion);
@@ -185,7 +188,25 @@ export function ParlourLobby({
     <div className="debate-container parlour-lobby-screen" style={{ maxWidth: '820px', margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) 20px' }}>
       {/* 1. Masthead */}
       <header style={{ textAlign: 'center', marginBottom: 'clamp(24px, 4vw, 36px)', position: 'relative' }}>
-        <div style={{ position: 'absolute', right: 0, top: 0 }}>
+        <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !soundOn;
+              setSoundEnabled(next);
+              setSoundOn(next);
+              if (next) playClick(); // the switch confirms itself, on the way up
+            }}
+            className="btn-ghost"
+            style={{ padding: '8px', borderRadius: '50%' }}
+            aria-label={soundOn ? 'Mute the chamber' : 'Unmute the chamber'}
+            aria-pressed={!soundOn}
+            title={soundOn ? 'Sound on' : 'Sound off'}
+          >
+            {soundOn
+              ? <Volume2 size={18} color="var(--brass)" />
+              : <VolumeX size={18} color="var(--ink-muted)" />}
+          </button>
           <button
             type="button"
             onClick={onToggleTheme}
