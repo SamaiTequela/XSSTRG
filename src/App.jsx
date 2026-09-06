@@ -6,7 +6,7 @@ import DebateStage from './components/debate/DebateStage';
 import JuryScoringStage from './components/debate/JuryScoringStage';
 import DeliberationLoadingScreen from './components/debate/DeliberationLoadingScreen';
 import VerdictStage from './components/debate/VerdictStage';
-import { useRoomSync, createOnlineRoom, joinOnlineRoom, fetchRoomView } from './services/roomSync';
+import { useRoomSync, createOnlineRoom, joinOnlineRoom, fetchRoomView, nextVerdict, nextClientPhase } from './services/roomSync';
 import { playGavel } from './utils/soundEffects';
 import { 
   Flame, 
@@ -567,47 +567,45 @@ export default function App() {
     if (!remotePhase) return; // null = not yet initialised, ignore
     if (remotePhase !== 'review') readySentRef.current = false;
 
-    if (remotePhase !== phase) {
-      if (remotePhase === 'debate' && (phase === 'room_lobby' || phase === 'lobby')) {
-        transitionToPhase('transition');
-      } else if (remotePhase === 'verdict') {
-        transitionToPhase('verdict');
-      } else if (remotePhase === 'scoring') {
-        transitionToPhase('scoring');
-      } else if (remotePhase === 'review') {
-        // The room waits here until both speakers confirm they are done with
-        // the record. Nothing ever sent that confirmation, so the room stayed
-        // in review: the adjudicator was never opened, the verdict could not be
-        // stored (setVerdict only applies while judging), and the opponent --
-        // on a device that could not see the host's local copy -- was left
-        // waiting for a result that never arrived. Jury rooms stalled the same
-        // way, with scoring never opening for the panel.
-        if (!roomSync.serverView?.you?.isSpectator && !readySentRef.current) {
-          readySentRef.current = true;
-          roomSync.signalReady?.();
-        }
-        if (phase !== 'deliberating' && !verdict) transitionToPhase('deliberating');
-      } else if (remotePhase === 'judging') {
-        const isHost = roomSync.serverView?.you?.isHost ?? (userRole === 'for');
-        if (isHost && !isAdjudicating && !verdict) {
-          handleTriggerAdjudication();
-        } else if (!isHost && phase !== 'deliberating' && !verdict) {
-          transitionToPhase('deliberating');
-        }
-      } else if (remotePhase === 'lobby' && phase !== 'room_lobby' && phase !== 'lobby') {
-        // The room was reset (rematch or a new motion). Drop the finished
-        // verdict, or the block below drags this client straight back to it.
-        setVerdict(null);
-        transitionToPhase('room_lobby');
+    // The room waits in review until both speakers confirm they are done with
+    // the record. Nothing ever sent that confirmation, so the room stayed in
+    // review: the adjudicator was never opened, the verdict could not be
+    // stored (setVerdict only applies while judging), and the opponent -- on a
+    // device that could not see the host's local copy -- was left waiting for
+    // a result that never arrived. Jury rooms stalled the same way, with
+    // scoring never opening for the panel.
+    if (remotePhase === 'review' && !roomSync.serverView?.you?.isSpectator && !readySentRef.current) {
+      readySentRef.current = true;
+      roomSync.signalReady?.();
+    }
+
+    // One client fetches the verdict, and it is the host's job.
+    if (remotePhase === 'judging') {
+      const isHost = roomSync.serverView?.you?.isHost ?? (userRole === 'for');
+      if (isHost && !isAdjudicating && !roomSync.roomState?.verdict) {
+        handleTriggerAdjudication();
       }
     }
-    if (roomSync.roomState?.verdict) {
-      setVerdict(roomSync.roomState.verdict);
-      if (phase !== 'verdict') {
-        transitionToPhase('verdict');
-      }
-    }
+
+    // Where this client belongs now. Every pair resolves, so no client can be
+    // left on a screen the room has moved on from.
+    const target = nextClientPhase(remotePhase, phase);
+    if (target) transitionToPhase(target);
   }, [roomSync.roomState?.phase, roomSync.roomState?.verdict, phase, isOnlineMode, roomCode, transitionToPhase, gameMode, isAdjudicating, verdict, handleTriggerAdjudication, roomSync.serverView?.you?.isHost, userRole]);
+
+  // The room's verdict is the truth in an online chamber. This used to only
+  // ever *set* a verdict, and cleared it in a single branch of the phase sync
+  // above -- so a client that missed the rematch's brief lobby tick kept the
+  // old result for ever, and that stale value then blocked it from following
+  // the next match into deliberation. nextVerdict already knows which phases
+  // can hold a verdict, so a host's freshly generated one is not blanked
+  // between generating it and publishing it.
+  useEffect(() => {
+    if (!isOnlineMode || !roomCode) return;
+    const remotePhase = roomSync.roomState?.phase;
+    if (!remotePhase) return;
+    setVerdict((prev) => nextVerdict(remotePhase, roomSync.roomState?.verdict ?? null, prev));
+  }, [isOnlineMode, roomCode, roomSync.roomState?.phase, roomSync.roomState?.verdict]);
 
   const handlePhaseChange = (nextPhase) => {
     setPhase(nextPhase);

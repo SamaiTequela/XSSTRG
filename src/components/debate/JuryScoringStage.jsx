@@ -98,6 +98,9 @@ export function JuryScoringStage({
   const progressPercent = Math.max(0, (secondsLeft / 120) * 100);
 
   const handleTriggerGeminiAdjudication = async () => {
+    // Never in an online jury room: the panel's ballots decide there, and the
+    // server would refuse this verdict anyway.
+    if (isOnlineJury) return;
     setIsAdjudicating(true);
     setAdjudicateError(null);
     try {
@@ -707,6 +710,7 @@ export function JuryScoringStage({
             </div>
           ) : !hasSubmitted ? (
             <>
+              {!isOnlineJury && (
               <button
                 type="button"
                 onClick={() => { playClick(); handleTriggerGeminiAdjudication(); }}
@@ -729,6 +733,7 @@ export function JuryScoringStage({
                 <Sparkles size={16} color="var(--brass)" />
                 {isAdjudicating ? 'Adjudicating Chamber Record…' : '⚡ AI Adjudicator'}
               </button>
+              )}
 
               <button
                 type="button"
@@ -745,7 +750,7 @@ export function JuryScoringStage({
                 }}
               >
                 <Send size={15} />
-                Submit Manual Ballot →
+                {isOnlineJury ? 'Cast My Ballot →' : 'Submit Manual Ballot →'}
               </button>
             </>
           ) : (

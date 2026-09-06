@@ -49,6 +49,43 @@ export function nextVerdict(phase, serverVerdict, prevVerdict) {
   return serverVerdict || prevVerdict || null;
 }
 
+// Which screen a client belongs on, given the room's phase and where that
+// client currently is. Returns null for "stay where you are".
+//
+// Every remote phase must resolve from EVERY local phase. The rule this
+// replaces enumerated only a handful of pairs, and a rematch is precisely
+// what produces the others: the room passes through `lobby` on its way to
+// the next match, polling is 2-6s, and the host can start again inside that
+// window. A client that missed the lobby tick then matched no branch at all
+// and sat on the finished verdict while its opponent played on.
+export function nextClientPhase(remotePhase, localPhase) {
+  switch (remotePhase) {
+    case 'lobby':
+      return (localPhase === 'room_lobby' || localPhase === 'lobby') ? null : 'room_lobby';
+
+    case 'debate':
+      if (localPhase === 'debate' || localPhase === 'transition') return null;
+      // From the room lobby the versus screen is the way in. From anywhere
+      // else the debate is already under way and this client is late, so it
+      // goes straight to the floor rather than replaying the entrance.
+      return (localPhase === 'room_lobby' || localPhase === 'lobby') ? 'transition' : 'debate';
+
+    // Both are the adjudicator working; the loading screen covers them.
+    case 'review':
+    case 'judging':
+      return localPhase === 'deliberating' ? null : 'deliberating';
+
+    case 'scoring':
+      return localPhase === 'scoring' ? null : 'scoring';
+
+    case 'verdict':
+      return localPhase === 'verdict' ? null : 'verdict';
+
+    default:
+      return null; // an unknown phase is never a reason to move
+  }
+}
+
 // API Helpers for /api/room
 export async function createOnlineRoom({ code, name, motion, perSecs, judgeMode, role }) {
   const res = await fetch('/api/room', {
@@ -158,6 +195,11 @@ export function useRoomSync({
   const judgeChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const lastDraftTextRef = useRef('');
+  // The online draft stream is throttled hard: one write every DRAFT_PUSH_MS
+  // at most, and never a repeat of text already sent.
+  const draftPushAtRef = useRef(0);
+  const draftPushTimerRef = useRef(null);
+  const draftSentRef = useRef('');
   const pollTimerRef = useRef(null);
 
   // Keep an authoritative reference to the latest roomState for event listeners
@@ -301,6 +343,19 @@ export function useRoomSync({
     if (!v) return;
     setServerView(v);
 
+    // The panel's live view of the speech being written. The server only puts
+    // `draft` in a spectator's view, and only while it is fresh, so this is
+    // simply whatever the jury is allowed to see right now.
+    if (v.you?.isSpectator) {
+      const d = v.draft;
+      setJudgeLiveDraft({
+        isTyping: !!(d && d.text),
+        text: d?.text || '',
+        wordCount: d?.wordCount || 0,
+        speaker: d?.side || ''
+      });
+    }
+
     setRoomState((prev) => {
       // Floor, don't round: 600ms left is not "one second left", and rounding up
       // left a spent clock reading 0:01 while the server considered it empty.
@@ -392,6 +447,19 @@ export function useRoomSync({
     channel?.postMessage(msg);
   }, []);
 
+  const DRAFT_PUSH_MS = 1600;
+
+  // Push the draft to the server so a Crowd Jury on other devices can follow
+  // it. Same-machine tabs still get the BroadcastChannel copy below, which is
+  // instant; this is the path that actually crosses devices.
+  const pushDraft = useCallback((text) => {
+    if (!isOnline || !roomId) return;
+    if (draftSentRef.current === text) return;
+    draftSentRef.current = text;
+    draftPushAtRef.current = Date.now();
+    sendRoomAction('draft', roomId, { text }).catch(() => {});
+  }, [isOnline, roomId]);
+
   // 3. Debounced Typing Broadcaster with Security Partitioning
   const broadcastTyping = useCallback((text) => {
     lastDraftTextRef.current = text;
@@ -425,7 +493,17 @@ export function useRoomSync({
         senderId: CLIENT_ID
       });
     }, 150);
-  }, [dispatchMessage, userProfile.role]);
+
+    // And across devices, on a leading-plus-trailing throttle so the last
+    // keystroke of a burst is never the one left unsent.
+    if (draftPushTimerRef.current) clearTimeout(draftPushTimerRef.current);
+    const since = Date.now() - draftPushAtRef.current;
+    if (since >= DRAFT_PUSH_MS) {
+      pushDraft(text);
+    } else {
+      draftPushTimerRef.current = setTimeout(() => pushDraft(text), DRAFT_PUSH_MS - since);
+    }
+  }, [dispatchMessage, userProfile.role, pushDraft]);
 
   // 4. Submit Turn across all tabs & online API
   const broadcastTurn = useCallback(async (turn, nextSpeaker, nextTurnNo, clocks = {}, opts = {}) => {
