@@ -199,6 +199,28 @@ export function RoomWaitingLobby({
           gap: '24px'
         }}
       >
+        {/* A Crowd Jury room seats everyone on the jury and lets the two
+            debaters claim a bench here. Nothing said so, so the pair who
+            meant to debate found themselves listed as judges and had no idea
+            why -- or that one click fixed it. */}
+        {gameMode === 'crowd_jury' && (
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--brass-subtle, rgba(212,175,55,0.10))',
+              border: '1px solid var(--brass-line, rgba(212,175,55,0.35))',
+              color: 'var(--ink-secondary)',
+              fontSize: '0.9rem',
+              lineHeight: 1.5
+            }}
+          >
+            <strong style={{ color: 'var(--brass)' }}>Everyone arrives on the jury.</strong>{' '}
+            The two who are debating claim a bench below — take
+            {' '}<em>Proposition</em> or <em>Opposition</em>. Whoever is left on the
+            panel scores the debate.
+          </div>
+        )}
         {/* Chamber Header Card */}
         <section
           style={{

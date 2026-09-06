@@ -176,10 +176,13 @@ export function JuryScoringStage({
           { point: "Could address automated bot farm dynamics more empirically", citationQuote: turns[3]?.text?.slice(0, 60) || "Speech turn", turnNo: 4 }
         ]
       },
+      judgeCount: 1,
+      // The panel is whoever actually scored. On one device that is one
+      // person. This used to pad the scorecards with a "Judge 1" and a
+      // "Judge 3" who did not exist, invented their scores and put words in
+      // their mouths -- and demoted the only real juror to "You (Judge 2)".
       individualScores: [
-        { judgeLabel: "Judge 1", scoreFor: Math.min(10, scoreFor + 1), scoreAgainst: Math.max(1, scoreAgainst - 1), remarks: "Solid round; Proposition had stronger empirical momentum." },
-        { judgeLabel: "You (Judge 2)", scoreFor, scoreAgainst, remarks: remarks || "Fair clash across both benches." },
-        { judgeLabel: "Judge 3", scoreFor: Math.max(1, scoreFor - 1), scoreAgainst: Math.min(10, scoreAgainst + 1), remarks: "Opposition carried rhetorical appeal." }
+        { judgeLabel: "You", scoreFor, scoreAgainst, remarks: remarks || "" }
       ]
     };
     if (onSubmitJudgement) {

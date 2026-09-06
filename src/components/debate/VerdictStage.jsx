@@ -620,9 +620,13 @@ export default function VerdictStage({
           {judgeBallots.map((judge, idx) => {
             const votedFor = judge.scoreFor > judge.scoreAgainst;
             const votedAgainst = judge.scoreFor < judge.scoreAgainst;
+            // An online room anonymises the panel and sends `label`; the
+            // one-device jury sends `judgeLabel`. Reading only the latter left
+            // every scorecard in an online jury with a blank heading.
+            const judgeLabel = judge.judgeLabel || judge.label || `Judge ${idx + 1}`;
             return (
               <div
-                key={judge.judgeLabel || idx}
+                key={judgeLabel}
                 style={{
                   padding: '14px 16px',
                   borderRadius: 'var(--radius-md)',
@@ -636,7 +640,7 @@ export default function VerdictStage({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: votedFor ? 'var(--for)' : (votedAgainst ? 'var(--against)' : 'var(--brass)') }} />
-                    <strong style={{ fontFamily: 'Bricolage Grotesque', fontSize: '0.95rem' }}>{judge.judgeLabel}</strong>
+                    <strong style={{ fontFamily: 'Bricolage Grotesque', fontSize: '0.95rem' }}>{judgeLabel}</strong>
                     <span className="role-pill brass" style={{ fontSize: '0.62rem' }}>
                       {votedFor ? 'VOTED PROPOSITION' : (votedAgainst ? 'VOTED OPPOSITION' : 'TIED BALLOT')}
                     </span>
